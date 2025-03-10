@@ -1,0 +1,22 @@
+{
+  "name": "btpi",
+  "version": "1.0.0",
+  "description": "Query data from SQL Server and send to API",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^4.21.2",
+    "moment-timezone": "^0.5.47",
+    "mssql": "^11.0.1",
+    "node-schedule": "^2.1.1",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0"
+  }
+}
