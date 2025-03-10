@@ -1,0 +1,24 @@
+{
+    "database": {
+        "_comment_format": "Numbers and boolean values such as connectionTimeout and encrypt should not be wrapped in quotes. Entries beginning with _comment are ignored.",
+        "user": "myMSSQLUser",
+        "password": "mySecretPassword",
+        "server": "127.0.0.1",
+        "database": "production",
+        "_comment_connectionTimeout": "Maximum time (in milliseconds) that the driver will wait for a connection to be established. If a connection cannot be established within this time, an error will be thrown. The default value is 15000 ms (15 seconds)",
+        "connectionTimeout": 5000,
+        "_comment_requestTimeout": "Maximum time (in milliseconds) to wait for a query to complete. If a query takes longer than this time, it will be canceled, and an error will be returned. The default value is also 15000 ms (15 seconds)",
+        "requestTimeout": 15000,
+        "options": {
+            "_comment_encrypt": "true|false|strict Set to true for Azure SQL",
+            "encrypt": false
+        }
+    },
+    "server": {
+        "port": 3000
+    },
+    "schedule": {
+        "_comment": "This object is used to define the schedule for all queries. The value should be a cron string that will be passed to node-schedule. Default is every 30 minutes between 8am and 5pm on weekdays.",
+        "frequency": "*/30 8-17 * * 1-5"
+    }
+}
