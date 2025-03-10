@@ -1,0 +1,21 @@
+{
+    "_comment": "This file is used to define the queries that will be run by the server. Each enabled query will be run on a schedule and the results will be saved to a file. The file will be served by the server when the client requests the data.",
+    "queries": [
+      {
+        "_comment_general": "TODO: This object could be extended to support a refresh value for each query, perhaps with a 'cron' element to pass to node-schedule",
+        "Name": "SPROCTest",
+        "Title": "SPROC Test",
+        "SQL": "EXEC dbo.mySPROC",
+        "File": "public/data/mySPROC.json",
+        "_comment_Enabled": "If true, the query will be run when the server starts",
+        "Enabled": true
+      },
+      {
+        "Name": "ProductTest",
+        "Title":"Product Test",
+        "SQL": "SELECT TOP 4 p.ProductCode FROM btprod.dbo.Product p WHERE p.Deleted = 0 ORDER BY p.DateTimeCreated DESC",
+        "File": "public/data/products.json",
+        "Enabled": false
+      }
+    ]
+  }
