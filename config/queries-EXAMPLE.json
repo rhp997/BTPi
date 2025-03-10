@@ -13,7 +13,7 @@
       {
         "Name": "ProductTest",
         "Title":"Product Test",
-        "SQL": "SELECT TOP 4 p.ProductCode FROM btprod.dbo.Product p WHERE p.Deleted = 0 ORDER BY p.DateTimeCreated DESC",
+        "SQL": "SELECT TOP 4 p.ProductCode FROM Product p WHERE p.Deleted = 0 ORDER BY p.DateTimeCreated DESC",
         "File": "public/data/products.json",
         "Enabled": false
       }
