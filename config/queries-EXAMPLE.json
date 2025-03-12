@@ -7,15 +7,15 @@
         "Title": "SPROC Test",
         "SQL": "EXEC dbo.mySPROC",
         "File": "public/data/mySPROC.json",
-        "_comment_Enabled": "If true, the query will be run when the server starts",
-        "Enabled": true
+        "_comment_Enabled": "If true, the query will be run on the scheduled interval and when the server starts",
+        "Enabled": false
       },
       {
         "Name": "ProductTest",
         "Title":"Product Test",
         "SQL": "SELECT TOP 4 p.ProductCode FROM Product p WHERE p.Deleted = 0 ORDER BY p.DateTimeCreated DESC",
         "File": "public/data/products.json",
-        "Enabled": false
+        "Enabled": true
       }
     ]
   }

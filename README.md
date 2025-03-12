@@ -6,7 +6,7 @@
 
 ## About
 
-This project provides a mechanism for displaying tabular data from a Microsoft SQL Server (MSSQL) database in a browser with a configurable data refresh rate. Specifically, the app is intended to communicate with Epicor's BisTrack software with the server running on a Raspberry Pi device, but any MSSQL database and/or device capable of running a Node.js app will suffice.
+This project provides a mechanism for displaying tabular data from a Microsoft SQL Server (MSSQL) database in a browser with a configurable data refresh rate. Specifically, the app is intended to communicate with Epicor's BisTrack software with the server running on a Raspberry Pi device, but any MSSQL database and/or device capable of running a Node.js app will suffice. The Raspberry Pi will act as the (Noed.js) server and client (chromium-browser).
 
 ### Server (Raspberry Pi)
 
@@ -15,43 +15,194 @@ This project provides a mechanism for displaying tabular data from a Microsoft S
   - On initialization, the service reads a list of (configurable) queries and runs each.
   - Each enabled query is also added to a schedule (node-schedule) and executed with the output saved as a JSON file at the scheduled interval
   - A list of successful queries (name and filepath only) is written to /public/data/queryList.json for JQuery access
-  - POST to /data will run all enabled queries
+  - POST to /data will run all enabled queries and set the 'Last-Modified' header in the return to the timestamp
 - The public folder is published as the HTML root and index.html served to the user by default
-- PM2 manages the server proces and automatically runs on start
+- Query results are written to /public/data as JSON files (consumed by AJAX in index.html)
+- PM2 manages the server process and automatically starts on reboot
 
 ### Client (Raspberry Pi)
 
 - Default chromium-browser is used to launch index.html in kiosk mode
-- index.html utilizes a meta refresh to automatically use the latest data
-- Edit index.html and use JQuery to select a query and load the results in a table
+- index.html utilizes a META refresh to automatically refresh
+- By default, index.html contains a single table (formatted with Bootstrap) whose columns and rows are derived from the output of the passed query.
+  - The table header is derived from the configured query's title attribute
+  - The caption indicates the last time the page was reloaded by the META tag (not file timestamp)
+- Using JQuery and a text editor, the format of the webpage is easily changed
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-### Built With
+## Built With
 
-- [![Next][Next.js]][Next-url]
-- [![Bootstrap][Bootstrap.com]][Bootstrap-url]
-- [![JQuery][JQuery.com]][JQuery-url]
-- [![Javascript][Javascript]][Javascript-url]
-- [![PM2][pm2]][pm2-url]
+[![RPi][rpi]][rpi-url]
+[![Next][Next.js]][Next-url]
+[![Bootstrap][Bootstrap.com]][Bootstrap-url]
+[![JQuery][JQuery.com]][JQuery-url]
+[![Javascript][Javascript]][Javascript-url]
+[![PM2][pm2]][pm2-url]
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-<!-- GETTING STARTED -->
+## Prerequisites
 
-## Getting Started
+- A Raspberry Pi (RPi) with a working OS and GUI. Examples will assume Raspberry Pi OS (bookworm).
+- Access to the RPi's command line with administrator/sudo privileges
 
-This is an example of how you may give instructions on setting up your project locally.
-To get a local copy up and running follow these simple example steps.
+## Basic RPi Config
 
-### Prerequisites
+1. Update Locale, Timezone, and Keyboard to match your environment. The scheduler and logs will utilize these values. Note the RPi defaults are UK-based. (Preferences --> Raspberry Pi Configuration --> Localisation)
+2. Configure chromium not to ask about restoring the last session if improperly closed. Enter the following in a terminal:
 
-This is an example of how to list things you need to use the software and how to install them.
+   ```sh
+   sed -i 's/"exited_cleanly":false/"exited_cleanly":true/' "$HOME/.config/chromium/Default/Preferences"
+   sed -i 's/"exit_type":"Crashed"/"exit_type":"Normal"/' "$HOME/.config/chromium/Default/Preferences"
+   ```
 
-- npm
-  ```sh
-  npm install npm@latest -g
-  ```
+3. Optional: Enable SSH and VNC (Preferences --> Interfaces) and configure remote access. See VNC Notes below.
+4. Optional: Disable notice for launching executable (e.g., \*.desktop) files
+
+   - Open a file manager window and navigate to Edit --> Preferences --> General
+   - Check box "Don't ask options on launch executable file"
+
+   ### VNC Configuration Notes
+
+   Note: Raspberry OS uses Wayland VNC (wayvnc) by default. Encryption is not fully implemented and unnecessarily takes up resources on a local network. If not needed or a "No matching security types" connection error is encountered, disable with:
+
+   ```sh
+   sudo nano /etc/wayvnc/config
+   ```
+
+   Set:
+   enable_auth=false
+
+   Reboot (wayvncctl doesn't seem to work?)
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Node.js Environment
+
+Configure RPi to run Node.js by installing through nvm (avoid repository version). In a terminal:
+
+```sh
+sudo apt update && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+```
+
+Reload terminal and check version:
+
+```sh
+source ~/.bashrc
+nvm --version
+```
+
+List the versions availalbe and find a Long-Term-Support (LTS) version to install:
+
+```sh
+nvm ls-remote
+```
+
+Install the chosen version by copying or typing in the version number. I chose the latest LTS version v22.13.1. Your options may vary:
+
+```sh
+nvm install v22.13.1
+```
+
+Set to use this version:
+
+```sh
+nvm use v22.13.1
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Configure Server
+
+Create the server path, temporarily open permissions to facilitate module installation and repo copy, clone the BTPi repository, and install the required modules:
+
+```sh
+sudo mkdir /srv/BTPi && sudo chmod 777 /srv/BTPi
+git clone https://github.com/rhp997/BTPi.git /srv/BTPi
+```
+
+Download the required modules inside the /srv/BTPi directory:
+
+```sh
+cd /srv/BTPi
+npm init -y
+npm install express mssql winston winston-daily-rotate-file winston moment-timezone node-schedule
+npm install pm2@latest -g
+```
+
+### Modify Config Files
+
+1. /config/config.json: Copy the example file (config-EXAMPLE.json) and rename config.json. Edit config.json:
+   - **database:** Enter the database credentials for your environment. At a minimum, the user, password, server, and database keys need to be changed.
+   - **server:** Optionally, the port the server will listen on may be changed here. If changed, make note of the port as it will also need to be updated elsewhere.
+   - **schedule:** Enter a schedule to automatically run the queries. Use crontab format (see also https://crontab.guru/)
+2. /config/queries.json: Copy the example queries file (queries-EXAMPLE.json) and rename queries.json. Edit queries.json:
+   - **Name:** Unique name identifying the query
+   - **Title:** Title used for the table
+   - **SQL:** SQL to execute
+   - **File:** Location of the output file. Should be in public/data/
+   - **Enabled:** true to enable, false to disable
+
+Save the new config files.
+While inside the main /srv/BTPi directory, run the server with:
+
+```sh
+node app.js
+```
+
+If everything worked, you should see a message stating the server has started and is listening on the configured port. Additionally, if queries were specified in queries.json, they will attempt to run on server initialization and the resultant /public/data/\*.json files should be created.
+
+Finally, change permissions on the folder back to the defaults:
+
+```sh
+sudo chmod 755 /srv/BTPi
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Autostart Browser
+
+To start the browser in kiosk mode on reboot, locate the rpi-config/BTPI.desktop file and edit with a text editor to use the configured port. Save the .desktop file and copy it to the autostart directory:
+
+```sh
+mkdir -p ~/.config/autostart
+cp /srv/BTPi/rpi-config/BTPi.desktop ~/.config/autostart && sudo chmod +x ~/.config/autostart/BTPi.desktop
+```
+
+Optional: Copy the launcher to the Desktop:
+
+```sh
+cp /srv/BTPi/rpi-config/BTPi.desktop ~/Desktop && sudo chmod +x ~/Desktop/BTPi.desktop
+```
+
+Double click the launcher to test.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Daemonize the Server (PM2)
+
+PM2 is a daemon process manager that keeps the application running and automatically started following a reboot.
+With the server (node app.js) running in the background, change to the server directory and run the following:
+
+```sh
+cd /srv/BTPi
+pm2 startup
+```
+
+Copy the text created by the startup command and run it in a terminal by pasting. Verify the command completed succesfully. Next, save the process list for reboot persistence:
+
+```sh
+pm2 save
+```
+
+Test by rebooting (sudo reboot) and checking for the running process with:
+
+```sh
+ps -ax | grep app.js
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
 
@@ -65,3 +216,5 @@ This is an example of how to list things you need to use the software and how to
 [Javascript-url]: https://www.javascript.com/
 [pm2]: https://img.shields.io/badge/pm2-2B037A?style=for-the-badge&logo=pm2&logoColor=white
 [pm2-url]: https://pm2.keymetrics.io/
+[rpi]: https://img.shields.io/badge/raspberrypi-A22846?style=for-the-badge&logo=raspberrypi&logoColor=white
+[rpi-url]: https://www.raspberrypi.com/

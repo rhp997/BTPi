@@ -1,0 +1,8 @@
+node_modules/
+config/config.json
+config/queries.json
+installation.txt
+mssql.js
+oldcode.txt
+package-lock.json
+srd.js
