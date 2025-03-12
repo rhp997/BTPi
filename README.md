@@ -6,7 +6,7 @@
 
 ## About
 
-This project provides a mechanism for displaying tabular data from a Microsoft SQL Server (MSSQL) database in a browser with a configurable data refresh rate. Specifically, the app is intended to communicate with Epicor's BisTrack software with the server running on a Raspberry Pi device, but any MSSQL database and/or device capable of running a Node.js app will suffice. The Raspberry Pi will act as the (Noed.js) server and client (chromium-browser).
+This project provides a mechanism for displaying data from a Microsoft SQL Server (MSSQL) database in a browser with a configurable data refresh rate. Specifically, the app is intended to communicate with Epicor's BisTrack software with the server running on a Raspberry Pi device, but any MSSQL database and/or device capable of running a Node.js app will suffice. The Raspberry Pi will act as the (Express) server and client (chromium-browser).
 
 ### Server (Raspberry Pi)
 
@@ -14,7 +14,7 @@ This project provides a mechanism for displaying tabular data from a Microsoft S
   - Winston creates error and info logs and rotates daily (14 days kept)
   - On initialization, the service reads a list of (configurable) queries and runs each.
   - Each enabled query is also added to a schedule (node-schedule) and executed with the output saved as a JSON file at the scheduled interval
-  - A list of successful queries (name and filepath only) is written to /public/data/queryList.json for JQuery access
+  - A list of successful queries (name, title, & filepath only) is written to /public/data/queryList.json for JQuery access
   - POST to /data will run all enabled queries and set the 'Last-Modified' header in the return to the timestamp
 - The public folder is published as the HTML root and index.html served to the user by default
 - Query results are written to /public/data as JSON files (consumed by AJAX in index.html)
