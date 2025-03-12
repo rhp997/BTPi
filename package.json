@@ -1,15 +1,15 @@
 {
-  "name": "btpi",
+  "name": "BTPi",
   "version": "1.0.0",
-  "description": "Query data from SQL Server and send to API",
+  "description": "Simple web server for serving MS SQL Server data to JSON files for consumption by a web client (e.g., Raspberry Pi)",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["Bistrack", "Raspberry Pi", "MS SQL Server", "Express", "Node"],
+  "author": "Steve Dodson",
+  "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "express": "^4.21.2",
