@@ -15,6 +15,7 @@
         }
     },
     "server": {
+        "_comment_port": "Port to listen on. Default = 3000. If modified, the URL in rpi-config/BTPI.desktop (autostart file) must also be updated",
         "port": 3000
     },
     "schedule": {

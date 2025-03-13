@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=BisTrack Pi
 Type=Application
-Exec=chromium-browser --kiosk --noerrdialogs --disable-infobars 'http://localhost:3000'
+Exec=sh -c "sleep 3 && chromium-browser --kiosk --noerrdialogs --disable-infobars 'http://localhost:3000'"
 Comment=Launch chromium in kiosk mode
 Icon=/srv/BTPi/public/images/bistrackPi.svg

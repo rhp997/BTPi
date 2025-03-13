@@ -2,19 +2,17 @@
     "_comment": "This file is used to define the queries that will be run by the server. Each enabled query will be run on a schedule and the results will be saved to a file. The file will be served by the server when the client requests the data.",
     "queries": [
       {
-        "_comment_general": "TODO: This object could be extended to support a refresh value for each query, perhaps with a 'cron' element to pass to node-schedule",
-        "Name": "SPROCTest",
-        "Title": "SPROC Test",
-        "SQL": "EXEC dbo.mySPROC",
-        "File": "public/data/mySPROC.json",
-        "_comment_Enabled": "If true, the query will be run on the scheduled interval and when the server starts",
-        "Enabled": false
+        "Name": "LastApproved",
+        "Title":"Last 10 Approved Orders",
+        "SQL": "SELECT TOP 10 oh.OrderNumber [Order #], oh.CustomerRef [Reference], oh.DateTimeApproved [Approved On], oh.DeliveryCity [City], u.Name [Approved By] FROM OrderHeader oh WITH(NOLOCK) INNER JOIN Users u ON u.UserID = oh.ApprovedByID ORDER BY oh.DateTimeApproved DESC",
+        "File": "public/data/approvedorders.json",
+        "Enabled": true
       },
       {
-        "Name": "ProductTest",
-        "Title":"Product Test",
-        "SQL": "SELECT TOP 4 p.ProductCode FROM Product p WHERE p.Deleted = 0 ORDER BY p.DateTimeCreated DESC",
-        "File": "public/data/products.json",
+        "Name": "TodaysJourneys",
+        "Title":"Today's Journeys",
+        "SQL": "SELECT jh.JourneyNumber [Journey], jh.JourneyDate [Journey Date], jh.DriverName [Driver], jh.TotalWeight [Ttl. Weight], jh.NoOfDrops [Num Drops] FROM JourneyHeader jh WITH(NOLOCK) WHERE jh.JourneyDate = CAST(GETDATE() AS DATE)",
+        "File": "public/data/journeys.json",
         "Enabled": true
       }
     ]
