@@ -142,7 +142,7 @@ app.post('/data', (req, res) => {
     res.sendStatus(200);
   }).catch((err) => {
     // TODO: Test this error handling
-
+    // TODO: Implement POST refresh button
     // Find the first query object with a non-empty error message
     const errMsg = queries.find(obj => obj.Error !== '');
     const msg = (errMsg) ? `Failed to create file ${errMsg.File} with error ${errMsg.Error}` : 'undefined error';
