@@ -11,7 +11,7 @@
 
 ## About
 
-This project provides a mechanism for returning data from a Microsoft SQL Server (MSSQL) database on a configurable refresh cycle as JSON to be formatted and consumed in a browser. Specifically, the app is intended to enable basic reporting on a TV or dumb terminal from Epicor's BisTrack software using a Raspberry Pi device. However, any MSSQL database and/or device capable of running a Node.js app will suffice.
+This project provides a mechanism for returning JSON data from a Microsoft SQL Server (MSSQL) database on a configurable refresh cycle to be consumed in a browser. Specifically, the app is intended to enable basic reporting on a TV or dumb terminal from Epicor's BisTrack software using a Raspberry Pi device. However, any MSSQL database and/or device capable of running a Node.js app will suffice.
 
 ### Server (Raspberry Pi)
 
