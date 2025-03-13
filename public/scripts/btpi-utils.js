@@ -35,6 +35,10 @@ function formatColData(value) {
     }
 }
 
+function addCaption(tableObj, captionTxt) {
+    tableObj.prepend($("<caption class='h5'></caption>").text(captionTxt));
+}
+
 /* -----------------------------------------------------------------
     Function to load JSON data from the specified pasth in the passed
     table object. Columns/headers are dynamically generated.
@@ -63,17 +67,24 @@ function loadTable(filePath, tableObj) {
             });
             tableHTML += "</tbody>";
             tableObj.append(tableHTML);
-            const captionTxt = `Last reload: ${new Date().toLocaleString()}`;
-            mTable.prepend($("<caption></caption>").text(captionTxt));
     }).fail(function(xhr, textstatus, error) {
-        displayError(tableObj, `Error attempting to access JSON: ${filePath}. ${textstatus} : ${error}`);
+        showErrorTable(tableObj, `Error attempting to access JSON: ${filePath}. ${textstatus} : ${error}`);
     });
+}
+
+/* -----------------------------------------------------------------
+    Function to display errors in the passed DIV object
+-----------------------------------------------------------------*/
+function showErrorDiv(divObj, errorMsg) {
+    divObj.text(errorMsg);
+    divObj.removeClass("d-none");
+    divObj.addClass("alert alert-danger d-block");
 }
 
 /* -----------------------------------------------------------------
     Function to display errors as a single row in the passed table object.
 -----------------------------------------------------------------*/
-function displayError(tableObj, errorMsg) {
+function showErrorTable(tableObj, errorMsg) {
     console.log(errorMsg);
     tableObj.html('<tr class="table-danger"><td class="table-danger">' + errorMsg + "</td></tr>");
     tableObj.removeClass("table-striped table-hover");
@@ -98,8 +109,8 @@ function loadQueryInTable(qName, tableObj) {
             // Set the title
             $("#pageTitle").text(qObj.Title);
             }
-            else { displayError(tableObj, `Query not found: ${qName}`); }
+            else { showErrorTable(tableObj, `Query not found: ${qName}`); }
     }).fail(function(xhr, textstatus, error) {
-        displayError(tableObj, `Error attempting to access JSON: ${qPath}. ${textstatus} : ${error}`);
+        showErrorTable(tableObj, `Error attempting to access JSON: ${qPath}. ${textstatus} : ${error}`);
     });
 }

@@ -10,15 +10,6 @@ require('winston-daily-rotate-file');
 // Node-schedule is used to run the queries on a schedule
 const schedule = require('node-schedule');
 
-// Load in the config files. No checks are performed on the config file, so it is assumed to be correct
-// TODO: Use nconf for config load?
-const config = require(path.join(__dirname, 'config', 'config.json'));
-const queries = require(path.join(__dirname, 'config', 'queries.json')).queries;
-
-const port = config.server.port;
-// Publish the public folder
-app.use(express.static(path.join(__dirname, 'public')));
-
 // Set up the logger
 const logger = winston.createLogger({
   level: "info",
@@ -33,7 +24,7 @@ const logger = winston.createLogger({
   // Log everything to to console and app.log, and only warnings and errors to error.log
   transports: [
     new winston.transports.Console(),
-    new winston.transports.File({ filename: path.join(__dirname, 'logs', "erorr.log"), level: "warn" }),
+    new winston.transports.File({ filename: path.join(__dirname, 'logs', "error.log"), level: "warn" }),
     // Rotate logs daily with the date pattern and keep 14 days of logs
     new  winston.transports.DailyRotateFile({
       filename: path.join(__dirname, 'logs', "app-%DATE%.log"),
@@ -44,6 +35,25 @@ const logger = winston.createLogger({
    })
   ],
 });
+
+// Load in the config files. No checks are performed on the config file, so it is assumed to be correct
+// TODO: Use nconf module for config load?
+const configPath = path.join(__dirname, 'config', 'config.json');
+const queryPath = path.join(__dirname, 'config', 'queries.json');
+let config;
+let queries;
+if ((fs.existsSync(configPath)) && (fs.existsSync(queryPath))) {
+  config = require(configPath);
+  queries = require(queryPath).queries;
+} else {
+  const err = new Error("Unable to start server; missing one or more config files. Check that config.json and queries.json are present");
+  logger.error(err.message);
+  throw err;
+}
+
+const port = config.server.port;
+// Publish the public folder
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Create a new schedule job to run every 30 minutes between 8:00 AM and 5:00 (5:30) PM, Monday through Friday
 // This job refreshes the data every 30 minutes during business hours

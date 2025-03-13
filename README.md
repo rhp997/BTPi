@@ -1,17 +1,22 @@
 <a id="readme-top"></a>
 
+<a href="https://github.com/rhp997/BTPi">
+    <img src="public/images/screenshot.png" alt="Screenshot" width="30%" height="30%" border="1">
+</a>
+<br /><br />
+
 # BisTrack Pi (BTPi)
 
 <!-- ABOUT THE PROJECT -->
 
 ## About
 
-This project provides a mechanism for displaying data from a Microsoft SQL Server (MSSQL) database in a browser with a configurable data refresh rate. Specifically, the app is intended to communicate with Epicor's BisTrack software with the server running on a Raspberry Pi device, but any MSSQL database and/or device capable of running a Node.js app will suffice. The Raspberry Pi will act as the (Express) server and client (chromium-browser).
+This project provides a mechanism for querying data from a Microsoft SQL Server (MSSQL) database and making that data available and formatted in a browser with a configurable data refresh rate. Specifically, the app is intended to communicate with Epicor's BisTrack software with the server running on a Raspberry Pi device, but any MSSQL database and/or device capable of running a Node.js app will suffice. The Raspberry Pi will act as the (Express) server and client (chromium-browser).
 
 ### Server (Raspberry Pi)
 
 - The service app.js listens on a (configurable) port
-  - Winston creates error and info logs and rotates daily (14 days kept)
+  - The winston module creates error and info logs and rotates daily (14 days kept)
   - On initialization, the service reads a list of (configurable) queries and runs each.
   - Each enabled query is also added to a schedule (node-schedule) and executed with the output saved as a JSON file at the scheduled interval
   - A list of successful queries (name, title, & filepath only) is written to /public/data/queryList.json for JQuery access
@@ -23,11 +28,14 @@ This project provides a mechanism for displaying data from a Microsoft SQL Serve
 ### Client (Raspberry Pi)
 
 - Default chromium-browser is used to launch index.html in kiosk mode
-- index.html utilizes a META refresh to automatically refresh
-- By default, index.html contains a single table (formatted with Bootstrap) whose columns and rows are derived from the output of the passed query.
+- index.html utilizes a META refresh to automatically refresh (separate from node-schedule)
+- By default, index.html contains two tables (formatted with Bootstrap) named Table1 and Table2 corresponding to the number of default queries
+  - If you have more queries, simply copy/paste one of the tables and change the number on the end of the ID (e.g. Table3)
+  - Table columns and rows are dynamically derived from the output of the passed query.
   - The table header is derived from the configured query's title attribute
-  - The caption indicates the last time the page was reloaded by the META tag (not file timestamp)
+  - A text value indicates the last time the page was reloaded by the META tag (not file timestamp)
 - Using JQuery and a text editor, the format of the webpage is easily changed
+  - Instead of tablular data, consider widgest from Charts.js or similar
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -57,15 +65,15 @@ This project provides a mechanism for displaying data from a Microsoft SQL Serve
    sed -i 's/"exit_type":"Crashed"/"exit_type":"Normal"/' "$HOME/.config/chromium/Default/Preferences"
    ```
 
-3. Optional: Enable SSH and VNC (Preferences --> Interfaces) and configure remote access. See VNC Notes below.
-4. Optional: Disable notice for launching executable (e.g., \*.desktop) files
+3. _Optional_: Enable SSH and VNC (Preferences --> Interfaces) and configure remote access. See VNC Notes below.
+4. _Optional_: Disable notice for launching executable (e.g., \*.desktop) files
 
    - Open a file manager window and navigate to Edit --> Preferences --> General
    - Check box "Don't ask options on launch executable file"
 
    ### VNC Configuration Notes
 
-   Note: Raspberry OS uses Wayland VNC (wayvnc) by default. Encryption is not fully implemented and unnecessarily takes up resources on a local network. If not needed or a "No matching security types" connection error is encountered, disable with:
+   Note: Recent versions of Raspberry OS uses Wayland VNC (wayvnc) by default. Encryption is not fully implemented and unnecessarily takes up resources on a local network. If not needed or a "No matching security types" connection error is encountered, disable with:
 
    ```sh
    sudo nano /etc/wayvnc/config
@@ -80,20 +88,20 @@ This project provides a mechanism for displaying data from a Microsoft SQL Serve
 
 ## Node.js Environment
 
-Configure RPi to run Node.js by installing through nvm (avoid repository version). In a terminal:
+Configure RPi to run Node.js by installing through nvm (avoid the repository version from apt). In a terminal:
 
 ```sh
 sudo apt update && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
 ```
 
-Reload terminal and check version:
+Reload the terminal shell and check version to verify install:
 
 ```sh
 source ~/.bashrc
 nvm --version
 ```
 
-List the versions availalbe and find a Long-Term-Support (LTS) version to install:
+List the versions available and find a Long-Term-Support (LTS) version to install:
 
 ```sh
 nvm ls-remote
@@ -128,6 +136,11 @@ Download the required modules inside the /srv/BTPi directory:
 cd /srv/BTPi
 npm init -y
 npm install express mssql winston winston-daily-rotate-file winston moment-timezone node-schedule
+```
+
+_Optional:_ Install pm2 (globally) to manage the process:
+
+```sh
 npm install pm2@latest -g
 ```
 
@@ -170,17 +183,19 @@ mkdir -p ~/.config/autostart
 cp /srv/BTPi/rpi-config/BTPi.desktop ~/.config/autostart && sudo chmod +x ~/.config/autostart/BTPi.desktop
 ```
 
-Optional: Copy the launcher to the Desktop:
+_Optional:_ Copy the launcher to the Desktop:
 
 ```sh
 cp /srv/BTPi/rpi-config/BTPi.desktop ~/Desktop && sudo chmod +x ~/Desktop/BTPi.desktop
 ```
 
+Note the BTPi.desktop file intended for the autostart directory includes a sleep command to wait a few seconds before launching. This gives the RPi time to start the network and PM2 process. If copying to ~/Desktop, the sleep delay can be removed from the ~/Desktop copy.
+
 Double click the launcher to test.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Daemonize the Server (PM2)
+## Optional: Daemonize the Server (PM2)
 
 PM2 is a daemon process manager that keeps the application running and automatically started following a reboot.
 With the server (node app.js) running in the background, change to the server directory and run the following:
@@ -200,6 +215,32 @@ Test by rebooting (sudo reboot) and checking for the running process with:
 
 ```sh
 ps -ax | grep app.js
+```
+
+### PM2 Notes
+
+View running processes:
+
+```sh
+pm2 ls
+```
+
+View information on app.js:
+
+```sh
+pm2 show app
+```
+
+Stop the process:
+
+```sh
+pm2 stop app
+```
+
+Start the process:
+
+```sh
+pm2 start app
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
