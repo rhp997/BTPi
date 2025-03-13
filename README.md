@@ -11,7 +11,7 @@
 
 ## About
 
-This project provides a mechanism for querying data from a Microsoft SQL Server (MSSQL) database and making that data available and formatted in a browser with a configurable data refresh rate. Specifically, the app is intended to communicate with Epicor's BisTrack software with the server running on a Raspberry Pi device, but any MSSQL database and/or device capable of running a Node.js app will suffice. The Raspberry Pi will act as the (Express) server and client (chromium-browser).
+This project provides a mechanism for returning data from a Microsoft SQL Server (MSSQL) database on a configurable refresh cycle as JSON to be formatted and consumed in a browser. Specifically, the app is intended to enable basic reporting on a TV or dumb terminal from Epicor's BisTrack software using a Raspberry Pi device. However, any MSSQL database and/or device capable of running a Node.js app will suffice.
 
 ### Server (Raspberry Pi)
 
@@ -35,7 +35,7 @@ This project provides a mechanism for querying data from a Microsoft SQL Server 
   - The table header is derived from the configured query's title attribute
   - A text value indicates the last time the page was reloaded by the META tag (not file timestamp)
 - Using JQuery and a text editor, the format of the webpage is easily changed
-  - Instead of tablular data, consider widgest from Charts.js or similar
+  - Instead of tablular data, consider widgets from Charts.js or similar
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
