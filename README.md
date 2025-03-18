@@ -169,6 +169,8 @@ node app.js
 
 If everything worked, you should see a message stating the server has started and is listening on the configured port. Additionally, if queries were specified in queries.json, they will attempt to run on server initialization and the resultant /public/data/\*.json files should be created.
 
+To view the web page, open a browser and navigate to `http://localhost:<port`> (where port is the configured port; 3000 by default).
+
 Finally, change permissions on the folder back to the defaults:
 
 ```sh

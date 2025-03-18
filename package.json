@@ -7,7 +7,13 @@
     "start": "node app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["Bistrack", "Raspberry Pi", "MS SQL Server", "Express", "Node"],
+  "keywords": [
+    "Bistrack",
+    "Raspberry Pi",
+    "MS SQL Server",
+    "Express",
+    "Node"
+  ],
   "author": "Steve Dodson",
   "license": "MIT",
   "type": "commonjs",
