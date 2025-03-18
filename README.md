@@ -42,7 +42,8 @@ This project provides a mechanism for returning JSON data from a Microsoft SQL S
 ## Built With
 
 [![RPi][rpi]][rpi-url]
-[![Next][Next.js]][Next-url]
+[![Node][Node.js]][Node-url]
+[![Express][Express]][Express-url]
 [![Bootstrap][Bootstrap.com]][Bootstrap-url]
 [![JQuery][JQuery.com]][JQuery-url]
 [![Javascript][Javascript]][Javascript-url]
@@ -278,8 +279,10 @@ pm2 restart app
 
 <!-- MARKDOWN LINKS & IMAGES -->
 
-[Next.js]: https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
-[Next-url]: https://nextjs.org/
+[Node.js]: https://img.shields.io/badge/node.js-5FA04E?style=for-the-badge&logo=nextdotjs&logoColor=white
+[Node-url]: https://nodejs.org/en
+[Express]: https://img.shields.io/badge/express-000000?style=for-the-badge&logo=express&logoColor=white
+[Express-url]: https://expressjs.com/
 [Bootstrap.com]: https://img.shields.io/badge/Bootstrap-563D7C?style=for-the-badge&logo=bootstrap&logoColor=white
 [Bootstrap-url]: https://getbootstrap.com
 [JQuery.com]: https://img.shields.io/badge/jQuery-0769AD?style=for-the-badge&logo=jquery&logoColor=white
