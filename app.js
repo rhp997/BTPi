@@ -9,6 +9,7 @@ const moment = require('moment-timezone');
 require('winston-daily-rotate-file');
 // Node-schedule is used to run the queries on a schedule
 const schedule = require('node-schedule');
+const appName = require('./package.json').name;
 
 // Set up the logger
 const logger = winston.createLogger({
@@ -22,15 +23,21 @@ const logger = winston.createLogger({
     winston.format.json()
   ),
   // Log everything to to console and app.log, and only warnings and errors to error.log
+  // Creates a valid JSON one line entry (no commas separating objects) for easy parsing line by line
   transports: [
-    new winston.transports.Console(),
-    new winston.transports.File({ filename: path.join(__dirname, 'logs', "error.log"), level: "warn" }),
+    new winston.transports.Console({ format: winston.format.cli() }),
+    new winston.transports.File({
+      filename: path.join(__dirname, 'logs', "error.json"),
+      level: "warn",
+      format: winston.format.json()
+    }),
     // Rotate logs daily with the date pattern and keep 14 days of logs
     new  winston.transports.DailyRotateFile({
-      filename: path.join(__dirname, 'logs', "app-%DATE%.log"),
+      filename: path.join(__dirname, 'logs', appName + "-%DATE%.json"),
       datePattern: 'YYYY-MM-DD',
       zippedArchive: true,
       level: 'info',
+      format: winston.format.json(),
       maxFiles: '14d'
    })
   ],
@@ -155,6 +162,7 @@ app.post('/data', (req, res) => {
   Begin listening on the specified port and initialize the queries
   ======================================================================*/
 app.listen(port, () => {
+  // TODO: Check for connectivity before initializing; use is-online module? (npm install is-online); https://www.npmjs.com/package/is-online?activeTab=readme
   logger.info(`Server started on port ${port}`);
   // Create an initial set of files on startup so the application has something to work with
   logger.info(`Initializing up to ${queries.length} query(s) on startup`);
