@@ -158,6 +158,9 @@ npm install pm2@latest -g
    - **Enabled:** true to enable, false to disable
 
 Save the new config files.
+
+_Note:_ Changes to the config files will not take effect until the app is restarted.
+
 While inside the main /srv/BTPi directory, run the server with:
 
 ```sh
