@@ -243,6 +243,32 @@ Start the process:
 pm2 start app
 ```
 
+Restart the process (kills the old process, starts a new one):
+
+```sh
+pm2 restart app
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Known Issues
+
+When the app is daemonized using PM2, the process runs before the RPi network is up. When this happens, the error log will contain something like:
+
+`"code": "ESOCKET",
+"level": "error",
+"message": "runQueries: Failed to connect to <DATABASE>:<PORT> - Could not connect (sequence)",
+"name": "ConnectionError",
+"originalError": {
+"code": "ESOCKET"
+}`
+
+Depending on how often the schedule is configured to run, this could leave your webpage without data for some time. As a workaround, open a terminal after the network is up and restart the process:
+
+```sh
+pm2 restart app
+```
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
