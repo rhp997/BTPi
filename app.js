@@ -62,9 +62,9 @@ const port = config.server.port;
 // Publish the public folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Create a new schedule job to run every 30 minutes between 8:00 AM and 5:00 (5:30) PM, Monday through Friday
-// This job refreshes the data every 30 minutes during business hours
+// TODO: Use main config file as default, but allow individual overrides for each query
 logger.info(`Creating schedule with frequency ${config.schedule.frequency}`);
+// Load the configuration's frequencey (crontab format) and run all queries on that schedule
 const job = schedule.scheduleJob(config.schedule.frequency, function(){
   logger.info('Running scheduled job');
   // Keep the data fresh by automatically running the queries
