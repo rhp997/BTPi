@@ -33,7 +33,7 @@ This project provides a mechanism for returning JSON data from a Microsoft SQL S
   - If you have more queries, simply copy/paste one of the tables and change the number on the end of the ID (e.g. Table3)
   - Table columns and rows are dynamically derived from the output of the passed query.
   - The table header is derived from the configured query's title attribute
-  - A text value indicates the last time the page was reloaded by the META tag (not file timestamp)
+  - A text value indicates the last time the data or page was refreshed (see Heartbeat query)
 - Using JQuery and a text editor, the format of the webpage is easily changed
   - Instead of tablular data, consider widgets from Charts.js or similar
 
@@ -160,6 +160,8 @@ npm install pm2@latest -g
 
 Save the new config files.
 
+_Note:_ The Heartbeat query (see example file) returns a timestamp as the DateTimeLastRun column/property that is used as a data refresh indicator
+
 _Note:_ Changes to the config files will not take effect until the app is restarted.
 
 While inside the main /srv/BTPi directory, run the server with:
@@ -258,6 +260,8 @@ pm2 restart app
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Known Issues
+
+//TODO: Remove?
 
 When the app is daemonized using PM2, the process runs before the RPi network is up. When this happens, the error log will contain something like:
 

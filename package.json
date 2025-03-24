@@ -1,6 +1,6 @@
 {
   "name": "BTPi",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Simple web server for serving MS SQL Server data to JSON files for consumption by a web client (e.g., Raspberry Pi)",
   "main": "app.js",
   "scripts": {
