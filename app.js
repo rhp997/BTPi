@@ -3,12 +3,33 @@ const app = express();
 const sql = require('mssql');
 const fs = require('fs');
 const path = require('path');
+
+/* cors-proxy additions */
+var url = require('url');
+const cors = require('cors');
+const axios = require('axios');
+const xml2js = require('xml2js');
+/*
+    Set header defaults with cors:
+    "origin": "*",
+    "methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+    "preflightContinue": false,
+    "optionsSuccessStatus": 204
+*/
+app.use(cors());
+
+const apiRepsonseType = Object.freeze({
+  XML: "xml",
+  JSON: "json"
+});
+
 // Winston handles logging; moment-timezone formats timestamps; winston-daily-rotate-file rotates logs daily
 const winston = require("winston");
 const moment = require('moment-timezone');
 require('winston-daily-rotate-file');
 // Node-schedule is used to run the queries on a schedule
 const schedule = require('node-schedule');
+const { error } = require('console');
 const appName = require('./package.json').name;
 
 // Set up the logger
@@ -224,6 +245,60 @@ app.get('/data', (req, res) => {
 })
 
 /* ======================================================================
+  Route to handle GET proxy requests where the endpoint or api being queried
+  returns XML data. Because XML is meh, convert the response to JSON before
+  returning. Some BisTrack WMS-specific replacements are performed for a param
+  named stock_code; all other params are untouched.
+
+  The client calling code should resemble:
+
+  $.ajax({
+          url: "/proxy-xml",
+          data: {
+            api: "http://<endpoint_server>>:<port>>/<endpoint>",
+            stock_code: "MY_PROD_SKU",
+          },
+          method: "GET",
+          success: function (data) { ... });
+
+Where api should be the base URL of the endpoint and stock_code is an example
+of a parameter used by the endpoint or api. If the api does not utilize params,
+they can be removed from the calling code.
+
+Listing the parameters in the "data" section negates the need to wrap param
+values with a call to encodeURIComponent()
+
+
+  ======================================================================*/
+  app.get('/proxy-xml', async (req, res) => {
+    // TODO: Add functionality to README
+    await getDataByProxy(req, res, apiRepsonseType.XML);
+});
+
+/* ======================================================================
+  Route to handle GET proxy requests where the endpoint or api being queried
+  returns JSON data.
+
+  The client calling code should resemble:
+
+  $.ajax({
+          url: "/proxy-json",
+          data: {
+            api: "http://<endpoint_server>>:<port>>/<endpoint>"
+          },
+          method: "GET",
+          success: function (data) { ... });
+
+Where api should be the base URL of the endpoint.
+
+Listing the parameters in the "data" section negates the need to wrap param
+values with a call to encodeURIComponent()
+  ======================================================================*/
+app.get('/proxy-json', async (req, res) => {
+  await getDataByProxy(req, res, apiRepsonseType.JSON);
+});
+
+/* ======================================================================
   Begin listening on the specified port and initialize the queries
   ======================================================================*/
 app.listen(port, () => {
@@ -234,3 +309,75 @@ app.listen(port, () => {
   // Don't worry about the return value as nothing is sent to the client here
   runQueries(queries);
 })
+
+/* ======================================================================
+  Function to handle proxy requests for endpoints retruning data in both
+  XML and JSON formats. XML data is converted to JSON before being returned
+  using the response object. The function uses axios to make the GET request
+  to the endpoint. The function builds the URL from the query parameters,
+  checks if the URL is valid, and then makes a GET request to the URL using
+  axios. The response is then returned as JSON.
+
+      @param {Object} req - The request object
+      @param {Object} res - The response object
+      @param {string} [responseType=apiRepsonseType] - The type of response expected (XML or JSON)
+  ======================================================================*/
+async function getDataByProxy(req, res, responseType) {
+  try {
+    let errorMsg;
+    if (req.query.api) {
+      let params = "";
+      // Build the parameters back if they were split out
+      for (const key in req.query) {
+        if (req.query.hasOwnProperty(key) && key.toLowerCase() !== "api") {
+          if (key.toLowerCase() === "stock_code") {
+            // WMS requires uppercase stock codes and uses a space placeholder for underscores
+            const val = req.query[key].toUpperCase().replace("_", "%20").replace("#", "%23");
+            params += `&${key}=${val}`;
+          } else {
+            params += `&${key}=${req.query[key]}`;
+          }
+        }
+      }
+      // Check for an existing "?"; if not found, add one
+      let fullURL = req.query.api + params;
+      if(fullURL.indexOf("?") === -1) {
+        // Switch the "&" to a "?"
+        fullURL = req.query.api + "?" + params.slice(1);
+      }
+      // Convert the URL to an object and test validity
+      const url = new URL(fullURL);
+      // Origin will be null when unknown protocol is used
+      if (url.origin !== 'null') {
+        logger.info(`${responseType} proxy fetching api ${url.href}`);
+        // CORS magic happens here; axios is not subject to single-domain policy and acts as a proxy
+        const response = await axios.get(url.href);
+        if(responseType === apiRepsonseType.XML) {
+          // Because XML is gross, convert the returned XML to JSON
+          const parser = new xml2js.Parser();
+          parser.parseString(response.data, (err, result) => {
+            if (err) {
+              errorMsg = 'Error parsing XML ';
+              if (err.message) errorMsg += err.message;
+            } else {
+              res.json(result);
+            }
+          });
+        } else if (responseType === apiRepsonseType.JSON) {
+          res.json(response.data);
+        } else {
+          errorMsg = `Unknown or invalid response type ${responseType}`;
+        }
+      } else {
+        errorMsg = `Unknown or invalid URL protocol (${url.protocol})`;
+      }
+    }
+    if (errorMsg) {
+      logger.error(errorMsg);
+      res.status(500).json({ error: errorMsg });
+    }
+  } catch (error) {
+    logger.error('Proxy error:', error);
+    res.status(500).json({ error: `Proxy request failed (${error.code}). Check log for details.` });
+  }
+}
