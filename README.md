@@ -1,6 +1,6 @@
 <a id="readme-top"></a>
 
-<a href="https://github.com/rhp997/BTPi">
+<a href="public/images/screenshot.png">
     <img src="public/images/screenshot.png" alt="Screenshot" width="30%" height="30%" border="1">
 </a>
 <br /><br />
@@ -48,6 +48,7 @@ This project provides a mechanism for returning JSON data from a Microsoft SQL S
 [![JQuery][JQuery.com]][JQuery-url]
 [![Javascript][Javascript]][Javascript-url]
 [![PM2][pm2]][pm2-url]
+[![Axios][Axios]][Axios-url]
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -136,7 +137,7 @@ Download the required modules inside the /srv/BTPi directory:
 ```sh
 cd /srv/BTPi
 npm init -y
-npm install express mssql winston winston-daily-rotate-file winston moment-timezone node-schedule
+npm install express mssql winston winston-daily-rotate-file winston moment-timezone node-schedule cors axios xml2js
 ```
 
 _Optional:_ Install pm2 (globally) to manage the process:
@@ -283,7 +284,7 @@ pm2 restart app
 
 <!-- MARKDOWN LINKS & IMAGES -->
 
-[Node.js]: https://img.shields.io/badge/node.js-5FA04E?style=for-the-badge&logo=nextdotjs&logoColor=white
+[Node.js]: https://img.shields.io/badge/node.js-5FA04E?style=for-the-badge&logo=node.js&logoColor=white
 [Node-url]: https://nodejs.org/en
 [Express]: https://img.shields.io/badge/express-000000?style=for-the-badge&logo=express&logoColor=white
 [Express-url]: https://expressjs.com/
@@ -297,3 +298,5 @@ pm2 restart app
 [pm2-url]: https://pm2.keymetrics.io/
 [rpi]: https://img.shields.io/badge/raspberrypi-A22846?style=for-the-badge&logo=raspberrypi&logoColor=white
 [rpi-url]: https://www.raspberrypi.com/
+[Axios]: https://img.shields.io/badge/axios-5A29E4?style=for-the-badge&logo=axios&logoColor=white
+[Axios-url]: https://github.com/axios/axios
