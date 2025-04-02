@@ -351,7 +351,14 @@ async function getDataByProxy(req, res, responseType) {
       if (url.origin !== 'null') {
         logger.info(`${responseType} proxy fetching api ${url.href}`);
         // CORS magic happens here; axios is not subject to single-domain policy and acts as a proxy
-        const response = await axios.get(url.href);
+        //const response = await axios.get(url.href);
+        const response = await axios.get(url.href, {
+          headers: {
+            // Set to avoid the "Not an ajax request" error in some APIs (like BisTrack WMS Pulse which uses Telerik/Kendo UI)
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        }
+        );
         if(responseType === apiRepsonseType.XML) {
           // Because XML is gross, convert the returned XML to JSON
           const parser = new xml2js.Parser();
