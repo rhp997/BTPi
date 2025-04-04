@@ -1,7 +1,7 @@
 {
   "name": "BTPi",
-  "version": "1.0.1",
-  "description": "Simple web server for serving MS SQL Server data to JSON files for consumption by a web client (e.g., Raspberry Pi)",
+  "version": "1.1.1",
+  "description": "Node web server for creating Bistrack BI on Pi",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
@@ -10,9 +10,9 @@
   "keywords": [
     "Bistrack",
     "Raspberry Pi",
-    "MS SQL Server",
-    "Express",
-    "Node"
+    "WMS",
+    "cors",
+    "proxy"
   ],
   "author": "Steve Dodson",
   "license": "MIT",
