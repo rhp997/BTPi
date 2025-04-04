@@ -1,19 +1,26 @@
 {
-    "_comment": "This file is used to define the queries that will be run by the server. Each enabled query will be run on a schedule and the results will be saved to a file. The file will be served by the server when the client requests the data.",
-    "queries": [
-      {
-        "Name": "LastApproved",
-        "Title":"Last 10 Approved Orders",
-        "SQL": "SELECT TOP 10 oh.OrderNumber [Order #], oh.CustomerRef [Reference], oh.DateTimeApproved [Approved On], oh.DeliveryCity [City], u.Name [Approved By] FROM OrderHeader oh WITH(NOLOCK) INNER JOIN Users u ON u.UserID = oh.ApprovedByID ORDER BY oh.DateTimeApproved DESC",
-        "File": "public/data/approvedorders.json",
-        "Enabled": true
-      },
-      {
-        "Name": "TodaysJourneys",
-        "Title":"Today's Journeys",
-        "SQL": "SELECT jh.JourneyNumber [Journey], jh.JourneyDate [Journey Date], jh.DriverName [Driver], jh.TotalWeight [Ttl. Weight], jh.NoOfDrops [Num Drops] FROM JourneyHeader jh WITH(NOLOCK) WHERE jh.JourneyDate = CAST(GETDATE() AS DATE)",
-        "File": "public/data/journeys.json",
-        "Enabled": true
-      }
-    ]
-  }
+  "_comment": "This file is used to define the queries that will be run by the server. Each enabled query will be run on a schedule and the results will be saved to a file. The file will be served by the server when the client requests the data.",
+  "queries": [
+    {
+      "Name": "LastApproved",
+      "Title": "Last 10 Approved Orders",
+      "SQL": "SELECT TOP 10 oh.OrderNumber [Order #], oh.CustomerRef [Reference], oh.DateTimeApproved [Approved On], oh.DeliveryCity [City], u.Name [Approved By] FROM OrderHeader oh WITH(NOLOCK) INNER JOIN Users u ON u.UserID = oh.ApprovedByID ORDER BY oh.DateTimeApproved DESC",
+      "File": "public/data/approvedorders.json",
+      "Enabled": true
+    },
+    {
+      "Name": "TodaysJourneys",
+      "Title": "Today's Journeys",
+      "SQL": "SELECT jh.JourneyNumber [Journey], jh.JourneyDate [Journey Date], jh.DriverName [Driver], jh.TotalWeight [Ttl. Weight], jh.NoOfDrops [Num Drops] FROM JourneyHeader jh WITH(NOLOCK) WHERE jh.JourneyDate = CAST(GETDATE() AS DATE)",
+      "File": "public/data/journeys.json",
+      "Enabled": true
+    },
+    {
+      "Name": "Heartbeat",
+      "Title": "Data refreshed on ",
+      "SQL": "SELECT CONVERT(VARCHAR, GETDATE(), 22) [DateTimeLastRun]",
+      "File": "public/data/heartbeat.json",
+      "Enabled": true
+    }
+  ]
+}
