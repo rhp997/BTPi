@@ -271,7 +271,6 @@ values with a call to encodeURIComponent()
 
   ======================================================================*/
   app.get('/proxy-xml', async (req, res) => {
-    // TODO: Add functionality to README
     await getDataByProxy(req, res, apiRepsonseType.XML);
 });
 
