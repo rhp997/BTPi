@@ -40,7 +40,21 @@ function addCaption(tableObj, captionTxt) {
 }
 
 /* -----------------------------------------------------------------
-    Function to load JSON data from the specified pasth in the passed
+    Function to load JSON data from the specified path and return a data object
+-----------------------------------------------------------------*/
+function loadJSON(filePath) {
+    return $.getJSON(filePath)
+    .then(function(data) { return data; })
+    .fail(function(jqXHR, textStatus, errorThrown) {
+        const msg = `Error loading JSON file ${filePath}: ${textStatus}, ${errorThrown}`;
+        console.error(msg);
+        showErrorDiv($("#errMsg"), msg);
+        return null;
+    });
+}
+
+/* -----------------------------------------------------------------
+    Function to load JSON data from the specified path in the passed
     table object. Columns/headers are dynamically generated.
     See also loadQueryInTable
 -----------------------------------------------------------------*/

@@ -1,43 +1,8 @@
 <a id="readme-top"></a>
-
-<a href="https://github.com/rhp997/BTPi">
-    <img src="public/images/screenshot.png" alt="Screenshot" width="30%" height="30%" border="1">
-</a>
+<img src="public/images/bistrackPi.png" />
 <br /><br />
 
 # BisTrack Pi (BTPi)
-
-<!-- ABOUT THE PROJECT -->
-
-## About
-
-This project provides a mechanism for returning JSON data from a Microsoft SQL Server (MSSQL) database on a configurable refresh cycle to be consumed in a browser. Specifically, the app is intended to enable basic reporting on a TV or dumb terminal from Epicor's BisTrack software using a Raspberry Pi device. However, any MSSQL database and/or device capable of running a Node.js app will suffice.
-
-### Server (Raspberry Pi)
-
-- The service app.js listens on a (configurable) port
-  - The winston module creates error and info logs and rotates daily (14 days kept)
-  - On initialization, the service reads a list of (configurable) queries and runs each.
-  - Each enabled query is also added to a schedule (node-schedule) and executed with the output saved as a JSON file at the scheduled interval
-  - A list of successful queries (name, title, & filepath only) is written to /public/data/queryList.json for JQuery access
-  - POST to /data will run all enabled queries and set the 'Last-Modified' header in the return to the timestamp
-- The public folder is published as the HTML root and index.html served to the user by default
-- Query results are written to /public/data as JSON files (consumed by AJAX in index.html)
-- PM2 manages the server process and automatically starts on reboot
-
-### Client (Raspberry Pi)
-
-- Default chromium-browser is used to launch index.html in kiosk mode
-- index.html utilizes a META refresh to automatically refresh (separate from node-schedule)
-- By default, index.html contains two tables (formatted with Bootstrap) named Table1 and Table2 corresponding to the number of default queries
-  - If you have more queries, simply copy/paste one of the tables and change the number on the end of the ID (e.g. Table3)
-  - Table columns and rows are dynamically derived from the output of the passed query.
-  - The table header is derived from the configured query's title attribute
-  - A text value indicates the last time the page was reloaded by the META tag (not file timestamp)
-- Using JQuery and a text editor, the format of the webpage is easily changed
-  - Instead of tablular data, consider widgets from Charts.js or similar
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Built With
 
@@ -48,108 +13,172 @@ This project provides a mechanism for returning JSON data from a Microsoft SQL S
 [![JQuery][JQuery.com]][JQuery-url]
 [![Javascript][Javascript]][Javascript-url]
 [![PM2][pm2]][pm2-url]
+[![Axios][Axios]][Axios-url]
+
+## About
+
+This project creates a Node.js server on Raspberry Pi (RPi) hardware with the intent of unifying three distinct areas of Epicor's Bistrack and Warehouse Management System (WMS) for Business Intelligence (BI) development. In summary, BTPi provides a mechanism for developing BisTrack BI on Pi. The RPi platform was chosen for its diminuitive size, relatively low cost, well-supported OS, and ability to connect to a TV or monitor via an HDMI port. However, any architecture that supports Node.js (e.g., a Node container) could be substituted.
+<a href="public/images/overview.png">
+<img src="public/images/overview.png" alt="Overview" width="30%" height="30%" border="1">
+</a>
+
+## Bistrack Mode
+
+Epicor’s Bistrack application utilizes a Microsoft SQL Server (MSSQL) back-end that BTPi accesses via the "mssql" Node package. Once configured, BTPi connects to the Bistrack database and executes all defined queries on a configurable interval (crontab-style). Query results are saved as JSON files for client-side scripting access.
+
+An example queries.json config file:
+
+```
+{
+  "queries": [
+    {
+      "Name": "LastApproved",
+      "Title": "Last 10 Approved Orders",
+      "SQL": "SELECT TOP 10 oh.OrderNumber [Order #], oh.CustomerRef [Reference], oh.DateTimeApproved [Approved On] FROM OrderHeader oh INNER JOIN Users u ON u.UserID = oh.ApprovedByID ORDER BY 3 DESC",
+      "File": "public/data/approvedorders.json",
+      "Enabled": true
+    }
+  ]
+}
+```
+
+BTPi access to the Bistrack database was intended to support BI displayed on a large TV or monitor for non-interactive viewing. An example index.html file displays query results in a tabular format:
+
+<a href="public/images/screenshot.png">
+    <img src="public/images/screenshot.png" alt="Screenshot" width="30%" height="30%" border="1">
+</a>
+<br /><br />
+When accessing Bistrack data, the RPi serves as both the server and client.
+
+### Server (app.js)
+
+- The service app.js listens on a (configurable) port
+  - The winston module creates error and info logs and rotates daily (14 days kept)
+  - On initialization, the service reads a list of (configurable) queries and runs each.
+  - Each enabled query is also added to a schedule (node-schedule) and executed with the output saved as a JSON file at the scheduled interval
+  - A list of successful queries (name, title, & filepath only) is written to /public/data/queryList.json for JQuery access
+  - POST to /data will run all enabled queries and set the 'Last-Modified' header in the return to the timestamp
+- The public folder is published as the HTML root and index.html served to the user by default
+- Query results are written to /public/data as JSON files (consumed by AJAX in index.html)
+- Optional: PM2 manages the server process and automatically starts on reboot
+
+### Client (chromium-browser)
+
+- Default chromium-browser is used to launch index.html in kiosk mode (see ~/.config/autostart)
+- index.html utilizes a META refresh to automatically refresh (separate from node-schedule)
+- By default, index.html contains two tables (formatted with Bootstrap) named Table1 and Table2 corresponding to the number of default queries
+  - If you have more queries, simply copy/paste one of the tables and change the number on the end of the ID (e.g. Table3)
+  - Table columns and rows are dynamically derived from the output of the passed query.
+  - The table header is derived from the configured query's title attribute
+  - A text value indicates the last time the data or page was refreshed (see Heartbeat query)
+- Using JQuery and a text editor, the format of the webpage is easily changed
+  - Instead of tablular data, consider widgets from Charts.js or similar
+  - A "url" attribute could be added to the META refresh to point to a new page (and the new page back or to a new page) in a daisy chain. Such a configuration would cycle through multiple views.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Prerequisites
+## Proxy Mode
 
-- A Raspberry Pi (RPi) with a working OS and GUI. Examples will assume Raspberry Pi OS (bookworm).
-- Access to the RPi's command line with administrator/sudo privileges
+Epicor's WMS system utilizes a combination of XML endpoints and a "Pulse board" application for reporting. Accessing this data programatically traditionally faced one of two hurdles:
 
-## Basic RPi Config
+1. The returned data is in XML format or
+2. The server blocks cross-origin requests.
 
-1. Update Locale, Timezone, and Keyboard to match your environment. The scheduler and logs will utilize these values. Note the RPi defaults are UK-based. (Preferences --> Raspberry Pi Configuration --> Localisation)
-2. Configure chromium not to ask about restoring the last session if improperly closed. Enter the following in a terminal:
+BTPi’s proxy mode addresses both issues by accepting an "api" URL parameter, which is then requested via proxy with an unrestrictive Cross-Origin Resource Sharing (CORS) policy. For JSON requests, an additional "X-Requested-With" header is also sent to mimic an AJAX call. The endpoint data is returned in a response object as JSON. Depending on the type of endpoint being consumed, two routes are provided:
 
-   ```sh
-   sed -i 's/"exited_cleanly":false/"exited_cleanly":true/' "$HOME/.config/chromium/Default/Preferences"
-   sed -i 's/"exit_type":"Crashed"/"exit_type":"Normal"/' "$HOME/.config/chromium/Default/Preferences"
+1. **/proxy-xml**: The <a href="WMSEndpoints.md">various (undocumented) XML endpoints</a> were originally exposed for QlikView consumption, but are a valid option for BI developers. BTPi implements a GET method route /proxy-xml for these XML endpoints to access and convert the data to JSON. Note the JSON data path on the returned data will typically match the following pattern:
+
+   ```
+   response.rti.target[0].returnData[0].ROWSET[0]
    ```
 
-3. _Optional_: Enable SSH and VNC (Preferences --> Interfaces) and configure remote access. See VNC Notes below.
-4. _Optional_: Disable notice for launching executable (e.g., \*.desktop) files
+2. **/proxy-json**: Separately, Pulse Queries created in the WMS “Web UI” (More --> Pulse --> Pulse Query Entry) can be accessed using the /proxy-json GET route. This route bypasses the Cross-Origin Resource Sharing (CORS) policy and returns a JSON response object.
 
-   - Open a file manager window and navigate to Edit --> Preferences --> General
-   - Check box "Don't ask options on launch executable file"
+Both WMS proxy routes (/proxy-xml and /proxy-json) can be accessed from a Dynamic Dashboard within BisTrack (e.g., fetch/JQuery). The following example shows the results of a call to the InventoryBySCE (/proxy-xml) for a selected product from within a Dynamic Dashboard:
 
-   ### VNC Configuration Notes
+<a href="public/images/wms-product-bt.png">
+    <img src="public/images/wms-product-bt.png" alt="Dashboard example" width="30%" height="30%" border="1">
+</a>
 
-   Note: Recent versions of Raspberry OS uses Wayland VNC (wayvnc) by default. Encryption is not fully implemented and unnecessarily takes up resources on a local network. If not needed or a "No matching security types" connection error is encountered, disable with:
-
-   ```sh
-   sudo nano /etc/wayvnc/config
-   ```
-
-   Set:
-   enable_auth=false
-
-   Reboot (wayvncctl doesn't seem to work?)
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Node.js Environment
-
-Configure RPi to run Node.js by installing through nvm (avoid the repository version from apt). In a terminal:
+The above example was generated with the following client-side JavaScript:
 
 ```sh
-sudo apt update && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+<script>
+  $(document).ready(function () {
+    $.ajax({
+      // proxy-xml expects XML data and returns it as a JSON object
+      url: "http://<BTPi-Server>:<port>/proxy-xml",
+      data: {
+        api: "http://<WMS-Endpoint>:<port>/rtiWeb/run?id=InventoryBySCE",
+        stock_code: "DP-DPSB-4x6x12",
+      },
+      method: "GET",
+      success: function (data) {
+        // Check for data and a good status code (0)
+        if (
+          data.rti &&
+          data.rti.target[0].status[0].$.code == 0 &&
+          data.rti.target[0].returnData[0].ROWSET[0].ROW
+        ) {
+          const row = data.rti.target[0].returnData[0].ROWSET[0].ROW;
+          console.log(data.rti.target[0].returnData[0].ROWSET[0]);
+          let tableHTML = "";
+          $.each(row, function (i, stockCode) {
+            // First row of returned XML (num = 1) is dummy data and should be skipped; use this to create the header
+            if (i === 0) {
+              tableHTML +=
+                '<thead class="table-primary text-white"><tr><th>XML Row</th><th>Unit #</th><th>Cart #</th><th>Location</th><th>Qty</th></tr></thead><tbody>';
+            } else {
+              // XML Row included to demonstrate the $.num attribute
+              tableHTML += `<tr><td>${stockCode.$.num}</td><td>${stockCode.UNIT_NUMBER}</td><td>${stockCode.CART_NUMBER}</td><td>${stockCode.LOCATION}</td><td>${stockCode.REMAINING_QUANTITY}</td></tr>`;
+            }
+          });
+          tableHTML += "</tbody>";
+          $("#Table1").append(tableHTML);
+
+          $("#header").text(
+            data.rti.target[0].returnData[0].ROWSET[0].ROW[1].STOCK_CODE
+          );
+        } else {
+          console.error("Dataset empty or invalid");
+          console.log(data);
+        }
+      },
+      error: function (error) {
+        console.error(error);
+      },
+    });
+  });
+</script>
 ```
 
-Reload the terminal shell and check version to verify install:
+Client-side code for a connection for a WMS Pulse query might resemble:
 
 ```sh
-source ~/.bashrc
-nvm --version
+   url: "http://<BTPi-Server>:<port>/proxy-json",
+   data: {
+      api: "http://<WMS-Endpoint>:<port>/Pulse/Query/runQuery",
+      // The "id" parameter should match your Pulse Query
+      id: "lines_shipped_last_7_days",
+   },
+   cache: false,
+   dataType: "json",
+   contentType: "application/json; charset=utf-8",
+   method: "GET",
+   ...
 ```
 
-List the versions available and find a Long-Term-Support (LTS) version to install:
+_Note:_ Encapsulating API parameters in the "data" section reads easier and negates the need to URL encode the parameters. If the full URL with parameters is passed without using the "data" section, be sure to encode any parameters.
 
-```sh
-nvm ls-remote
-```
+<a name="server-config" id="server-config"></a>
 
-Install the chosen version by copying or typing in the version number. I chose the latest LTS version v22.13.1. Your options may vary:
+## Server Configuration
 
-```sh
-nvm install v22.13.1
-```
-
-Set to use this version:
-
-```sh
-nvm use v22.13.1
-```
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Configure Server
-
-Create the server path, temporarily open permissions to facilitate module installation and repo copy, clone the BTPi repository, and install the required modules:
-
-```sh
-sudo mkdir /srv/BTPi && sudo chmod 777 /srv/BTPi
-git clone https://github.com/rhp997/BTPi.git /srv/BTPi
-```
-
-Download the required modules inside the /srv/BTPi directory:
-
-```sh
-cd /srv/BTPi
-npm init -y
-npm install express mssql winston winston-daily-rotate-file winston moment-timezone node-schedule
-```
-
-_Optional:_ Install pm2 (globally) to manage the process:
-
-```sh
-npm install pm2@latest -g
-```
-
-### Modify Config Files
+Before running BTPi, two configuration files should be created and configured:
 
 1. /config/config.json: Copy the example file (config-EXAMPLE.json) and rename config.json. Edit config.json:
-   - **database:** Enter the database credentials for your environment. At a minimum, the user, password, server, and database keys need to be changed.
-   - **server:** Optionally, the port the server will listen on may be changed here. If changed, make note of the port as it will also need to be updated elsewhere.
+   - **database:** Enter the database credentials for your BisTrack environment. At a minimum, the user, password, server, and database keys need to be changed.
+   - **server:** Optionally, the port the server will listen on may be changed here. If changed, make note of the port as it will also need to be updated <a href="RPIConfig.md#elsewhere">elsewhere</a>.
    - **schedule:** Enter a schedule to automatically run the queries. Use crontab format (see also https://crontab.guru/)
 2. /config/queries.json: Copy the example queries file (queries-EXAMPLE.json) and rename queries.json. Edit queries.json:
    - **Name:** Unique name identifying the query
@@ -158,128 +187,21 @@ npm install pm2@latest -g
    - **File:** Location of the output file. Should be in public/data/
    - **Enabled:** true to enable, false to disable
 
-Save the new config files.
+Save the new config files and start with:
 
-_Note:_ Changes to the config files will not take effect until the app is restarted.
-
-While inside the main /srv/BTPi directory, run the server with:
-
-```sh
+```
 node app.js
 ```
 
-If everything worked, you should see a message stating the server has started and is listening on the configured port. Additionally, if queries were specified in queries.json, they will attempt to run on server initialization and the resultant /public/data/\*.json files should be created.
+For more detailed configuration, see the <a href="RPIConfig.md">RPi guide.</a>
 
-To view the web page, open a browser and navigate to `http://localhost:<port`> (where port is the configured port; 3000 by default).
+_Note:_ The Heartbeat query (see example file) returns a timestamp as the DateTimeLastRun column/property that is used as a data refresh indicator
 
-Finally, change permissions on the folder back to the defaults:
-
-```sh
-sudo chmod 755 /srv/BTPi
-```
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Autostart Browser
-
-To start the browser in kiosk mode on reboot, locate the rpi-config/BTPI.desktop file and edit with a text editor to use the configured port. Save the .desktop file and copy it to the autostart directory:
-
-```sh
-mkdir -p ~/.config/autostart
-cp /srv/BTPi/rpi-config/BTPi.desktop ~/.config/autostart && sudo chmod +x ~/.config/autostart/BTPi.desktop
-```
-
-_Optional:_ Copy the launcher to the Desktop:
-
-```sh
-cp /srv/BTPi/rpi-config/BTPi.desktop ~/Desktop && sudo chmod +x ~/Desktop/BTPi.desktop
-```
-
-Note the BTPi.desktop file intended for the autostart directory includes a sleep command to wait a few seconds before launching. This gives the RPi time to start the network and PM2 process. If copying to ~/Desktop, the sleep delay can be removed from the ~/Desktop copy.
-
-Double click the launcher to test.
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Optional: Daemonize the Server (PM2)
-
-PM2 is a daemon process manager that keeps the application running and automatically started following a reboot.
-With the server (node app.js) running in the background, change to the server directory and run the following:
-
-```sh
-cd /srv/BTPi
-pm2 startup
-```
-
-Copy the text created by the startup command and run it in a terminal by pasting. Verify the command completed succesfully. Next, save the process list for reboot persistence:
-
-```sh
-pm2 save
-```
-
-Test by rebooting (sudo reboot) and checking for the running process with:
-
-```sh
-ps -ax | grep app.js
-```
-
-### PM2 Notes
-
-View running processes:
-
-```sh
-pm2 ls
-```
-
-View information on app.js:
-
-```sh
-pm2 show app
-```
-
-Stop the process:
-
-```sh
-pm2 stop app
-```
-
-Start the process:
-
-```sh
-pm2 start app
-```
-
-Restart the process (kills the old process, starts a new one):
-
-```sh
-pm2 restart app
-```
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Known Issues
-
-When the app is daemonized using PM2, the process runs before the RPi network is up. When this happens, the error log will contain something like:
-
-`"code": "ESOCKET",
-"level": "error",
-"message": "runQueries: Failed to connect to <DATABASE>:<PORT> - Could not connect (sequence)",
-"name": "ConnectionError",
-"originalError": {
-"code": "ESOCKET"
-}`
-
-Depending on how often the schedule is configured to run, this could leave your webpage without data for some time. As a workaround, open a terminal after the network is up and restart the process:
-
-```sh
-pm2 restart app
-```
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+_Note:_ Changes to the config files will not take effect until the app is restarted.
 
 <!-- MARKDOWN LINKS & IMAGES -->
 
-[Node.js]: https://img.shields.io/badge/node.js-5FA04E?style=for-the-badge&logo=nextdotjs&logoColor=white
+[Node.js]: https://img.shields.io/badge/node.js-5FA04E?style=for-the-badge&logo=node.js&logoColor=white
 [Node-url]: https://nodejs.org/en
 [Express]: https://img.shields.io/badge/express-000000?style=for-the-badge&logo=express&logoColor=white
 [Express-url]: https://expressjs.com/
@@ -293,3 +215,5 @@ pm2 restart app
 [pm2-url]: https://pm2.keymetrics.io/
 [rpi]: https://img.shields.io/badge/raspberrypi-A22846?style=for-the-badge&logo=raspberrypi&logoColor=white
 [rpi-url]: https://www.raspberrypi.com/
+[Axios]: https://img.shields.io/badge/axios-5A29E4?style=for-the-badge&logo=axios&logoColor=white
+[Axios-url]: https://github.com/axios/axios
