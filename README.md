@@ -17,7 +17,7 @@
 
 ## About
 
-This project creates a Node.js server on Raspberry Pi (RPi) hardware with the intent of unifying three distinct areas of Epicor's Bistrack and Warehouse Management System (WMS) for Business Intelligence (BI) development. In summary, BTPi provides a mechanism for developing BisTrack BI on Pi. The RPi platform was chosen for its diminuitive size, relatively low cost, well-supported OS, and ability to connect to a TV or monitor via an HDMI port. However, any architecture that supports Node.js (e.g., a Node container) could be substituted.
+This project creates a Node.js server on Raspberry Pi (RPi) hardware with the intent of unifying three distinct areas of Epicor's Bistrack and Warehouse Management System (WMS) for Business Intelligence (BI) development. In short, BTPi provides a mechanism for developing BisTrack BI on Pi. The RPi platform was chosen for its diminuitive size, relatively low cost, well-supported OS, and ability to connect to a TV or monitor via an HDMI port. However, any architecture that supports Node.js (e.g., a Node container) could be substituted.
 <a href="public/images/overview.png">
 <img src="public/images/overview.png" alt="Overview" width="30%" height="30%" border="1">
 </a>
@@ -55,7 +55,7 @@ When accessing Bistrack data, the RPi serves as both the server and client.
 - The service app.js listens on a (configurable) port
   - The winston module creates error and info logs and rotates daily (14 days kept)
   - On initialization, the service reads a list of (configurable) queries and runs each.
-  - Each enabled query is also added to a schedule (node-schedule) and executed with the output saved as a JSON file at the scheduled interval
+  - Each enabled query is also added to a global schedule (node-schedule) and executed with the output saved as a JSON file
   - A list of successful queries (name, title, & filepath only) is written to /public/data/queryList.json for JQuery access
   - POST to /data will run all enabled queries and set the 'Last-Modified' header in the return to the timestamp
 - The public folder is published as the HTML root and index.html served to the user by default
@@ -64,7 +64,7 @@ When accessing Bistrack data, the RPi serves as both the server and client.
 
 ### Client (chromium-browser)
 
-- Default chromium-browser is used to launch index.html in kiosk mode (see ~/.config/autostart)
+- Default chromium-browser is used to launch index.html in kiosk mode (<a href="RPIConfig.md#rpi-autostart">see also ~/.config/autostart</a>)
 - index.html utilizes a META refresh to automatically refresh (separate from node-schedule)
 - By default, index.html contains two tables (formatted with Bootstrap) named Table1 and Table2 corresponding to the number of default queries
   - If you have more queries, simply copy/paste one of the tables and change the number on the end of the ID (e.g. Table3)
@@ -86,10 +86,29 @@ Epicor's WMS system utilizes a combination of XML endpoints and a "Pulse board" 
 
 BTPi’s proxy mode addresses both issues by accepting an "api" URL parameter, which is then requested via proxy with an unrestrictive Cross-Origin Resource Sharing (CORS) policy. For JSON requests, an additional "X-Requested-With" header is also sent to mimic an AJAX call. The endpoint data is returned in a response object as JSON. Depending on the type of endpoint being consumed, two routes are provided:
 
-1. **/proxy-xml**: The <a href="WMSEndpoints.md">various (undocumented) XML endpoints</a> were originally exposed for QlikView consumption, but are a valid option for BI developers. BTPi implements a GET method route /proxy-xml for these XML endpoints to access and convert the data to JSON. Note the JSON data path on the returned data will typically match the following pattern:
+1. **/proxy-xml**: The <a href="WMSEndpoints.md">various (undocumented) XML endpoints</a> were originally exposed for QlikView consumption, but contain useful data for BI developers. BTPi implements a GET method route /proxy-xml for these XML endpoints to access and convert the data to JSON. Note the JSON data path on the returned data will typically match the following pattern:
 
    ```
-   response.rti.target[0].returnData[0].ROWSET[0]
+   response.rti.target[0].returnData[0].ROWSET[0].ROW[n]
+   ```
+
+   Which corresponds to the following returned XML:
+
+   ```
+   <rti xmlns="http://xml.majuredata.com/targetNS">
+      <transId/>
+      <status id="OK" code="0">OK</status>
+      <target tokenId="InventoryBySCE">
+         <status id="OK" code="0">Unit Data, By Stock Code</status>
+         <returnData>
+            <ROWSET>
+               <ROW num="1">
+               ...
+               </ROW>
+            </ROWSET>
+         <returnData>
+      <target>
+   </rti>
    ```
 
 2. **/proxy-json**: Separately, Pulse Queries created in the WMS “Web UI” (More --> Pulse --> Pulse Query Entry) can be accessed using the /proxy-json GET route. This route bypasses the Cross-Origin Resource Sharing (CORS) policy and returns a JSON response object.
@@ -193,11 +212,11 @@ Save the new config files and start with:
 node app.js
 ```
 
-For more detailed configuration, see the <a href="RPIConfig.md">RPi guide.</a>
-
 _Note:_ The Heartbeat query (see example file) returns a timestamp as the DateTimeLastRun column/property that is used as a data refresh indicator
 
 _Note:_ Changes to the config files will not take effect until the app is restarted.
+
+For more detailed installation and configuration instructions, see the <a href="RPIConfig.md">RPi guide.</a>
 
 <!-- MARKDOWN LINKS & IMAGES -->
 
