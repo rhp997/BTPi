@@ -18,6 +18,7 @@
 ## About
 
 This project creates a Node.js server on Raspberry Pi (RPi) hardware with the intent of unifying three distinct areas of Epicor's Bistrack and Warehouse Management System (WMS) for Business Intelligence (BI) development. In short, BTPi provides a mechanism for developing BisTrack BI on Pi. The RPi platform was chosen for its diminuitive size, relatively low cost, well-supported OS, and ability to connect to a TV or monitor via an HDMI port. However, any architecture that supports Node.js (e.g., a Node container) could be substituted.
+
 <a href="public/images/overview.png">
 <img src="public/images/overview.png" alt="Overview" width="30%" height="30%" border="1">
 </a>
