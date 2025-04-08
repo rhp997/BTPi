@@ -123,6 +123,8 @@ sudo chmod 755 /srv/BTPi
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<a name="rpi-autostart" id="rpi-autostart"></a>
+
 ## Autostart Browser
 
 To start the browser in kiosk mode on reboot, locate the <a name="elsewhere" id="elsewhere"></a>rpi-config/BTPI.desktop file and edit with a text editor to use the configured port. Save the .desktop file and copy it to the autostart directory:
