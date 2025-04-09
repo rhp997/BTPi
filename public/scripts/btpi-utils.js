@@ -62,24 +62,33 @@ function loadTable(filePath, tableObj) {
     $.getJSON(filePath,
         function (data) {
             let tableHTML = "";
-            // Loop through the array of objects
-            $.each(data, function (i, obj) {
-                // First time through, create the header using the object's keys
-                if(i === 0) {
-                    tableHTML += '<thead class="table-primary text-white"><tr>';
-                    // Loop through each key in the object
+            if(data.length > 0) {
+                // Loop through the array of objects
+                $.each(data, function (i, obj) {
+                    // First time through, create the header using the object's keys
+                    if(i === 0) {
+                        tableHTML += '<thead class="table-primary text-white"><tr>';
+                        // Loop through each key in the object
+                        $.each(obj, function (key, value) {
+                            tableHTML += "<th>" + key + "</th>";
+                        });
+                        tableHTML += "</tr></thead><tbody>";
+                    }
+                    tableHTML += "<tr>";
                     $.each(obj, function (key, value) {
-                        tableHTML += "<th>" + key + "</th>";
+                        tableHTML += "<td>" + formatColData(value) + "</td>";
                     });
-                    tableHTML += "</tr></thead><tbody>";
-                }
-                tableHTML += "<tr>";
-                $.each(obj, function (key, value) {
-                    tableHTML += "<td>" + formatColData(value) + "</td>";
+                    tableHTML += "</tr>";
                 });
-                tableHTML += "</tr>";
-            });
-            tableHTML += "</tbody>";
+                tableHTML += "</tbody>";
+            } else { // Empty dataset
+                // Remove all classes beginning with "table-"
+                tableObj.removeClass (function (index, className) {
+                    return (className.match (/(^|\s)table-\S+/g) || []).join(' ');
+                });
+                // Change to table-info or table-warning as needed
+                tableHTML += '<tbody><tr><td class="table-warning">No data returned</td></tr></tbody>';
+            }
             tableObj.append(tableHTML);
     }).fail(function(xhr, textstatus, error) {
         showErrorTable(tableObj, `Error attempting to access JSON: ${filePath}. ${textstatus} : ${error}`);
