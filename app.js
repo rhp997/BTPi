@@ -3,6 +3,7 @@ const app = express();
 const sql = require('mssql');
 const fs = require('fs');
 const path = require('path');
+const nconf = require('nconf');
 
 /* cors-proxy additions */
 var url = require('url');
@@ -18,6 +19,7 @@ const xml2js = require('xml2js');
 */
 app.use(cors());
 
+// For distinguishing which type of API response is expected for proxy routes
 const apiRepsonseType = Object.freeze({
   XML: "xml",
   JSON: "json"
@@ -64,28 +66,36 @@ const logger = winston.createLogger({
   ],
 });
 
-// Load in the config files. No checks are performed on the config file, so it is assumed to be correct
-const configPath = path.join(__dirname, 'config', 'config.json');
-const queryPath = path.join(__dirname, 'config', 'queries.json');
-let config;
-let queries;
-if ((fs.existsSync(configPath)) && (fs.existsSync(queryPath))) {
-  config = require(configPath);
-  queries = require(queryPath).queries;
-} else {
-  const err = new Error("Unable to start server; missing one or more config files. Check that config.json and queries.json are present");
-  logger.error(err.message);
-  throw err;
-}
+/*
+  Load the config files if present
+  Read argv, environment variables, and the config files in order; the first to have a value is used
+  If the config files are missing, no errors are raised. However, if the necessary keys are not passed
+  in another way (env, argv), an error is thrown. Also, nconf is the bee's knees.
+*/
+nconf.argv()
+.env()
+.file('config', { file: path.join(__dirname, 'config', 'config.json')} )
+.file( 'queries', { file: path.join(__dirname, 'config', 'queries.json') })
+.defaults({
+    btpi: {
+      // Default port
+      port: 3000,
+      interval: "*/30 8-17 * * 1-5"
+    }
+  })
+  .required(['btpi', 'database', 'database:user', 'database:server', 'database:password', 'database:database', 'queries']);
 
-const port = config.server.port;
+const queries = nconf.get('queries');
+const port = nconf.get('btpi:port');
+const intvl = nconf.get('btpi:interval');
+console.log(nconf.get("wms_proxy:host_xmlep"));
 // Publish the public folder
 app.use(express.static(path.join(__dirname, 'public')));
 
 // TODO: Use main config file as default, but allow individual overrides for each query
-logger.info(`Creating schedule with frequency ${config.schedule.frequency}`);
+logger.info(`Creating schedule with frequency ${intvl}`);
 // Load the configuration's frequencey (crontab format) and run all queries on that schedule
-const job = schedule.scheduleJob(config.schedule.frequency, function(){
+const job = schedule.scheduleJob(intvl, function(){
   logger.info('Running scheduled job');
   // Keep the data fresh by automatically running the queries
   runQueries(queries);
@@ -158,7 +168,8 @@ async function runQueries(queries, timeout = 5000) {
     const queryList = [];
     try {
       const curDT = new Date().toUTCString();
-      await sql.connect(config.database);
+      // The "database" config option should be a valid mssql Config Object
+      await sql.connect(nconf.get("database"));
       for (let i = 0; i < queries.length; i++) {
         if(queries[i].Enabled) {
           logger.info(`Executing query ${queries[i].Name}`);
@@ -212,7 +223,7 @@ app.post('/', (req, res) => {
   Route to handle GET requests to the root URL
   ======================================================================*/
 app.get('/', (req, res) => {
-  //Server up index.html by default
+  //Serve up index.html by default
   res.sendFile(path.join(__dirname, '/index.html'));
 })
 
@@ -255,7 +266,7 @@ app.get('/data', (req, res) => {
   $.ajax({
           url: "/proxy-xml",
           data: {
-            api: "http://<endpoint_server>>:<port>>/<endpoint>",
+            api: "http://<endpoint_host>>:<port>>/<endpoint>",
             stock_code: "MY_PROD_SKU",
           },
           method: "GET",
@@ -270,6 +281,8 @@ values with a call to encodeURIComponent()
 
 
   ======================================================================*/
+  // TODO: Add a route to handle XML calls to WMS and JSON calls to Pulse; read values from config to avoid storing in client code
+  // TODO: Add examples and update config file examples
   app.get('/proxy-xml', async (req, res) => {
     await getDataByProxy(req, res, apiRepsonseType.XML);
 });
@@ -283,7 +296,7 @@ values with a call to encodeURIComponent()
   $.ajax({
           url: "/proxy-json",
           data: {
-            api: "http://<endpoint_server>>:<port>>/<endpoint>"
+            api: "http://<endpoint_host>>:<port>>/<endpoint>"
           },
           method: "GET",
           success: function (data) { ... });
