@@ -40,6 +40,8 @@
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<a name="nodejs" id="nodejs"></a>
+
 ## Node.js Environment
 
 Configure RPi to run Node.js by installing through nvm (avoid the repository version from apt). In a terminal:
@@ -89,7 +91,7 @@ Download the required modules inside the /srv/BTPi directory:
 ```sh
 cd /srv/BTPi
 npm init -y
-npm install express mssql winston winston-daily-rotate-file winston moment-timezone node-schedule cors axios xml2js
+npm install express mssql winston winston-daily-rotate-file winston moment-timezone node-schedule cors axios xml2js nconf
 ```
 
 _Optional:_ Install pm2 (globally) to manage the process:
@@ -145,6 +147,8 @@ Note the BTPi.desktop file intended for the autostart directory includes a sleep
 Double click the launcher to test.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<a name="pm2" id="pm2"></a>
 
 ## Optional: Daemonize the Server (PM2)
 

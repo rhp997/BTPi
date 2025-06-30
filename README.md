@@ -194,30 +194,114 @@ _Note:_ Encapsulating API parameters in the "data" section reads easier and nega
 
 ## Server Configuration
 
-Before running BTPi, two configuration files should be created and configured:
+For detailed information on installing and configuring the Node.js environment, see the <a href="RPIConfig.md#nodejs">relevant section</a> in the RPi Config page.
 
-1. /config/config.json: Copy the example file (config-EXAMPLE.json) and rename config.json. Edit config.json:
-   - **database:** Enter the database credentials for your BisTrack environment. At a minimum, the user, password, server, and database keys need to be changed.
-   - **server:** Optionally, the port the server will listen on may be changed here. If changed, make note of the port as it will also need to be updated <a href="RPIConfig.md#elsewhere">elsewhere</a>.
-   - **schedule:** Enter a schedule to automatically run the queries. Use crontab format (see also https://crontab.guru/)
-2. /config/queries.json: Copy the example queries file (queries-EXAMPLE.json) and rename queries.json. Edit queries.json:
-   - **Name:** Unique name identifying the query
-   - **Title:** Title used for the table
-   - **SQL:** SQL to execute
-   - **File:** Location of the output file. Should be in public/data/
-   - **Enabled:** true to enable, false to disable
+BTPi requires several configurable parameters and one or more queries to run.
 
-Save the new config files and start with:
+### Configurable Parameters
+
+Parameters may be passed to the server when started via ARGV, exported as ENV variables, or added to config/config.json. The first value found from (in order) ARGV, ENV, and config.json is used.
+An example of passing parameters when starting BTPi is shown below:
+
+```sh
+node app.js --btpi.port=3004 --wms_proxy.host_xmlep="http://192.168.0.1:8710"
+```
+
+An example file (config-EXAMPLE.json) file is included with the project.
+
+The configurable parameters consist of three JSON objects:
+
+1. **database** - A mssql database <a href="https://tediousjs.github.io/node-mssql/">connection object</a>
+
+   ```
+   "database": {
+       "user": "<databaseuser>",
+       "password": "<password>",
+       "server": "<database_server>",
+       "database": "<database_instance>",
+   }
+   ```
+
+   At a minimum, specify the BisTrack database host, instance, and user credentials. Additional connection options (pooling, encryption, timeouts, etc.) are also available.
+
+2. **btpi** - Port and schedule interval for the btpi server
+
+   ```
+   "btpi": {
+       "port": 3000,
+       "interval": "*/30 8-17 * * 1-5"
+   }
+   ```
+
+   BTPi will listen on the configured port and run on the scheduled interval which utilizes crontab format (see also https://crontab.guru/).
+
+3. **wms_proxy** - Endpoint URLs when using the proxy routes
+
+   ```
+   "wms_proxy": {
+       "host_pulse": "<protocol>://<server>:<port>",
+       "host_xmlep": "<protocol>://<server>:<port>"
+   }
+   ```
+
+   The WMS Pulse Board and QlikView endpoints (XML) can be configured here to avoid their inclusion in client side code.
+
+_Note:_ If the btpi.port setting is changed from the default (3000), it will also need to be updated <a href="RPIConfig.md#elsewhere">in the RPi startup file</a>.
+
+### Queries
+
+By default, queries are specified in the config/queries.json file. Although query information can also be sent via the command line or exported to ENV variables, the queries.json file is the easiest to work with. An example file (queries-EXAMPLE.json) is provided with the project. The queries format is an array of objects with the following format:
+
+```
+{
+  "queries": [
+    {
+      "Name": "LastApproved",
+      "Title": "Last 10 Approved Orders",
+      "SQL": "SELECT TOP 10 Col FROM Table",
+      "File": "public/data/approvedorders.json",
+      "Enabled": true
+    },
+    {
+      "Name": "TodaysInfo",
+      "Title": "Today's Information",
+      "SQL": "SELECT Col2 FROM AnotherTable
+      "File": "public/data/secondquery.json",
+      "Enabled": false
+    }
+  ]
+}
+```
+
+Each key is described below:
+
+- **Name:** Unique name identifying the query
+- **Title:** Title used for the query. Useful for client side titles and captions.
+- **SQL:** SQL to execute
+- **File:** Location of the output file (public/data/)
+- **Enabled:** true to enable, false to disable
+
+_Note:_ The Heartbeat query (see example file) returns a timestamp as the DateTimeLastRun column/property that is used by the default index.html page as a data refresh indicator
+
+### Starting the Server
+
+Once configuration is in place, the BTPi server may be started with:
 
 ```
 node app.js
 ```
 
-_Note:_ The Heartbeat query (see example file) returns a timestamp as the DateTimeLastRun column/property that is used as a data refresh indicator
+As noted above, configuration parameters may also be passed at startup:
+
+```sh
+node app.js --btpi.port=3004 --wms_proxy.host_xmlep="http://192.168.0.1:8710"
+```
+
+Optionally, the process can be daemonized using PM2. See the <a href="RPIConfig.md#pm2">PM2</a> section in the RPI Config for more information.
+
+For more detailed Node.js installation and configuration instructions, see the <a href="RPIConfig.md">RPi guide.</a>
 
 _Note:_ Changes to the config files will not take effect until the app is restarted.
-
-For more detailed installation and configuration instructions, see the <a href="RPIConfig.md">RPi guide.</a>
 
 <!-- MARKDOWN LINKS & IMAGES -->
 

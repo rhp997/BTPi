@@ -1,6 +1,6 @@
 {
     "database": {
-        "_comment_format": "Numbers and boolean values such as connectionTimeout and encrypt should not be wrapped in quotes. Entries beginning with _comment are ignored.",
+        "_comment_info": "mssql Config Object",
         "user": "myMSSQLUser",
         "password": "mySecretPassword",
         "server": "127.0.0.1",
