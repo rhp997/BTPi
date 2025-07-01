@@ -88,11 +88,13 @@ nconf.argv()
   })
   .required(['btpi', 'database', 'database:user', 'database:server', 'database:password', 'database:database', 'queries']);
 
+// Think globally, act within local variable scope ... doh
 const queries = nconf.get('queries');
 const port = nconf.get('btpi:port');
 const intvl = nconf.get('btpi:interval');
 const pulse = nconf.get('wms_proxy:host_pulse');
 const xmlep = nconf.get('wms_proxy:host_xmlep');
+
 //console.log("Doh: " + nconf.get("wms_proxy:host_xmlep"));
 // Publish the public folder
 app.use(express.static(path.join(__dirname, 'public')));
@@ -255,8 +257,17 @@ app.post('/data', (req, res) => {
 
 /* ======================================================================
   Route to handle GET requests to the /data route
+  Client code should resemble:
+
+  url: "/data",
+  data: {
+    Name: "LastApproved",
+  },
+  cache: false,
+  dataType: "json",
+  contentType: "application/json; charset=utf-8",
+  method: "GET"
   ======================================================================*/
-  // TODO: Left off here; document this route. Add logging for all catch() blocks with error details. Note that queries are cached and app must be restarted to refresh the queries.
 app.get('/data', (req, res) => {
   // Allow the client to request a specific query by name. Allow the "Name" parameter to be case insensitive.
   // Note: The query name must exactly match (case sensitive) the "Name" property in the queries array.
@@ -274,17 +285,22 @@ app.get('/data', (req, res) => {
              res.json(queryResults.recordsets[0]);
            }).catch(() => {
              // Query execution failed
+             logger.error(`Query execution failed for "${queryName}."`);
+             logger.error(`SQL Error: ${error.message}`);
              res.status(500).send(`Query execution failed for "${queryName}." See log for details`);
            }).finally(() => {
               sql.close();
            });
          }).catch(() => {
            // Connection failed
-            res.status(500).send(`Database connection failed for "${queryName}." See log for details`);
+           logger.error(`Database connection failed for "${queryName}."`);
+           logger.error(`DB Conn Error: ${error.message}`);
+           res.status(500).send(`Database connection failed for "${queryName}." See log for details`);
          });
        }).catch(() => {
          // Connectivity check failed
-         res.status(500).send(`No internet connection or database connection failed for "${queryName}." See log for details`);
+         logger.error(`No internet or database connection"`);
+         res.status(500).send(`No internet or database connection failed for "${queryName}." See log for details`);
        });
     } else {
       // If the query name is not found or not enabled, return a 404 error
@@ -322,9 +338,7 @@ values with a call to encodeURIComponent()
 
 
   ======================================================================*/
-  // TODO: Add a route to handle XML calls to WMS and JSON calls to Pulse; read values from config to avoid storing in client code
-  // TODO: Add examples and update config file examples
-  app.get('/proxy-xml', async (req, res) => {
+app.get('/proxy-xml', async (req, res) => {
     await getDataByProxy(req, res, apiRepsonseType.XML);
 });
 
@@ -359,7 +373,6 @@ app.listen(port, () => {
   // Create an initial set of files on startup so the application has something to work with
   const numEnabled = queries.filter(obj => obj.Enabled === true).length;
   logger.info(`Initializing ${numEnabled} query(s) on startup`);
-  // Don't worry about the return value as nothing is sent to the client here
   runQueries(queries);
 })
 
@@ -379,17 +392,8 @@ async function getDataByProxy(req, res, responseType) {
   try {
     let errorMsg;
     if (req.query.api) {
-      // If an http protocol is not specified in the api URL, assume it should be prefixed with the configured WMS Pulse or XML endpoint
-      // This allows the client to pass in a relative path
-      if (!req.query.api.startsWith('http://') && !req.query.api.startsWith('https://')) {
-        logger.info(`Partial api value passed (${req.query.api}); prefixing with configured value`);
-        if(responseType === apiRepsonseType.XML) {
-          (xmlep) ? req.query.api = `${xmlep}${req.query.api}` : logger.warn(`No WMS XML endpoint configured (wms_proxy.host_xmlep); unable to prefix relative path`);
-        } else {
-          (pulse) ? req.query.api = `${pulse}${req.query.api}` : logger.warn(`No WMS Pulse endpoint configured (wms_proxy.host_pulse); unable to prefix relative path`);
-        }
-        logger.info(`api = ${req.query.api}`);
-      }
+      // Get an absolute path for the API endpoint if it is a relative path
+      req.query.api = await getAbsolutePath(req.query.api, responseType);
       let params = "";
       // Build the parameters back if they were split out
       for (const key in req.query) {
@@ -452,3 +456,24 @@ async function getDataByProxy(req, res, responseType) {
     res.status(500).json({ error: `Proxy request failed (${error.code}). Check log for details.` });
   }
 }
+
+/* ======================================================================
+  Allow relative paths to be prefixed with the configured WMS Pulse or XML endpoint
+  Expand as necessary to support other response types
+======================================================================*/
+async function getAbsolutePath(urlToCheck, responseType) {
+
+  let url = urlToCheck;
+  if (!urlToCheck.startsWith('http://') && !urlToCheck.startsWith('https://')) {
+    logger.info(`Partial URL value passed (${urlToCheck}); attempting to prefix with configured value`);
+    // Assume XML responseTypes should be the xmlep value, JSON response types should be the pulse value
+    if (responseType === apiRepsonseType.XML) {
+      (xmlep) ? url = `${xmlep}${url}` : logger.warn(`No WMS XML endpoint configured (wms_proxy.host_xmlep); unable to prefix relative path`);
+    } else if (responseType === apiRepsonseType.JSON) {
+      (pulse) ? url = `${pulse}${url}` : logger.warn(`No WMS Pulse endpoint configured (wms_proxy.host_pulse); unable to prefix relative path`);
+    }
+    logger.info(`Full url = ${url}`);
+  }
+  return url;
+}
+
