@@ -45,7 +45,7 @@ const logger = winston.createLogger({
   }),
     winston.format.json()
   ),
-  // Log everything to to console and app.log, and only warnings and errors to error.log
+  // Log everything to to console and <appName>-YYYY-MM-DD.json, and only warnings and errors to error.json
   // Creates a valid JSON one line entry (no commas separating objects) for easy parsing line by line
   transports: [
     new winston.transports.Console({ format: winston.format.cli() }),
@@ -81,6 +81,9 @@ nconf.argv()
       // Default port
       port: 3000,
       interval: "*/30 8-17 * * 1-5"
+    },
+    database: {
+      connectionTimeout: 5000
     }
   })
   .required(['btpi', 'database', 'database:user', 'database:server', 'database:password', 'database:database', 'queries']);
@@ -88,7 +91,9 @@ nconf.argv()
 const queries = nconf.get('queries');
 const port = nconf.get('btpi:port');
 const intvl = nconf.get('btpi:interval');
-console.log(nconf.get("wms_proxy:host_xmlep"));
+const pulse = nconf.get('wms_proxy:host_pulse');
+const xmlep = nconf.get('wms_proxy:host_xmlep');
+//console.log("Doh: " + nconf.get("wms_proxy:host_xmlep"));
 // Publish the public folder
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -251,8 +256,44 @@ app.post('/data', (req, res) => {
 /* ======================================================================
   Route to handle GET requests to the /data route
   ======================================================================*/
+  // TODO: Left off here; document this route. Add logging for all catch() blocks with error details. Note that queries are cached and app must be restarted to refresh the queries.
 app.get('/data', (req, res) => {
-  res.status(200).send('Get /data route not implemented');
+  // Allow the client to request a specific query by name. Allow the "Name" parameter to be case insensitive.
+  // Note: The query name must exactly match (case sensitive) the "Name" property in the queries array.
+  let queryName = req.query.name || req.query.Name;
+  if (queryName) {
+      // Check if the query name exists in the queries array
+    const queryObj = queries.find(obj => obj.Name === queryName);
+    if (queryObj && queryObj.Enabled) {
+       checkConnection(nconf.get("database:connectionTimeout"), 3000, 4).then(() => {
+         // Connection is good, proceed with query execution
+         sql.connect(nconf.get("database")).then(() => {
+           // Execute the query
+           sql.query(queryObj.SQL).then((queryResults) => {
+             // Return the results as JSON
+             res.json(queryResults.recordsets[0]);
+           }).catch(() => {
+             // Query execution failed
+             res.status(500).send(`Query execution failed for "${queryName}." See log for details`);
+           }).finally(() => {
+              sql.close();
+           });
+         }).catch(() => {
+           // Connection failed
+            res.status(500).send(`Database connection failed for "${queryName}." See log for details`);
+         });
+       }).catch(() => {
+         // Connectivity check failed
+         res.status(500).send(`No internet connection or database connection failed for "${queryName}." See log for details`);
+       });
+    } else {
+      // If the query name is not found or not enabled, return a 404 error
+      logger.warn(`Query "${queryName}" not found or not enabled`);
+      res.status(404).send(`Query "${queryName}" not found or not enabled`);
+    }
+  } else {
+    res.status(200).send({ message: 'No query name specified. Please provide a query name using the Name parameter.' });
+  }
 })
 
 /* ======================================================================
@@ -338,6 +379,17 @@ async function getDataByProxy(req, res, responseType) {
   try {
     let errorMsg;
     if (req.query.api) {
+      // If an http protocol is not specified in the api URL, assume it should be prefixed with the configured WMS Pulse or XML endpoint
+      // This allows the client to pass in a relative path
+      if (!req.query.api.startsWith('http://') && !req.query.api.startsWith('https://')) {
+        logger.info(`Partial api value passed (${req.query.api}); prefixing with configured value`);
+        if(responseType === apiRepsonseType.XML) {
+          (xmlep) ? req.query.api = `${xmlep}${req.query.api}` : logger.warn(`No WMS XML endpoint configured (wms_proxy.host_xmlep); unable to prefix relative path`);
+        } else {
+          (pulse) ? req.query.api = `${pulse}${req.query.api}` : logger.warn(`No WMS Pulse endpoint configured (wms_proxy.host_pulse); unable to prefix relative path`);
+        }
+        logger.info(`api = ${req.query.api}`);
+      }
       let params = "";
       // Build the parameters back if they were split out
       for (const key in req.query) {
