@@ -43,7 +43,41 @@ An example queries.json config file:
 }
 ```
 
-BTPi access to the Bistrack database was intended to support BI displayed on a large TV or monitor for non-interactive viewing. An example index.html file displays query results in a tabular format:
+### Data Routes
+
+The /data route allows all queries to be run at once (POST) or individually by query Name (GET) depending on the HTTP method invoked.
+
+The POST invocation was intended for use with a "Submit" button to refresh all the data and will create JSON files for each enabled query while also setting the 'Last-Modified' header in the response to the current timestamp.
+
+Calling the /data route using GET allows individual queries (must be enabled in Queries.json) to be called ad-hoc using the appropriate "Name" parameter. The response is returned in JSON. A client-side example is shown below:
+
+```
+$.ajax({
+  // The data route expects a query name to be passed in the "Name" parameter.
+  url: "/data",
+  data: {
+    Name: "LastApproved",
+  },
+  cache: false,
+  dataType: "json",
+  contentType: "application/json; charset=utf-8",
+  method: "GET",
+  success: function (data) {
+    if (data) {
+      ...
+    } else {
+      console.log("No data returned from the server.");
+    }
+  },
+  error: function (error) {
+    console.error(error);
+  },
+});
+```
+
+### Landing Page and RPi
+
+BTPi access to the Bistrack database was intended to support BI displayed on a large TV or monitor for non-interactive viewing. The default landing page is index.html which displays query results in a tabular format:
 
 <a href="public/images/screenshot.png">
     <img src="public/images/screenshot.png" alt="Screenshot" width="30%" height="30%" border="1">
@@ -51,7 +85,7 @@ BTPi access to the Bistrack database was intended to support BI displayed on a l
 <br /><br />
 When accessing Bistrack data, the RPi serves as both the server and client.
 
-### Server (app.js)
+#### Server (app.js)
 
 - The service app.js listens on a (configurable) port
   - The winston module creates error and info logs and rotates daily (14 days kept)
@@ -59,11 +93,12 @@ When accessing Bistrack data, the RPi serves as both the server and client.
   - Each enabled query is also added to a global schedule (node-schedule) and executed with the output saved as a JSON file
   - A list of successful queries (name, title, & filepath only) is written to /public/data/queryList.json for JQuery access
   - POST to /data will run all enabled queries and set the 'Last-Modified' header in the return to the timestamp
+  - GET to /data with a corresponding "Name" parameter will run the specified query (must be enabled) in queries.json
 - The public folder is published as the HTML root and index.html served to the user by default
 - Query results are written to /public/data as JSON files (consumed by AJAX in index.html)
 - Optional: PM2 manages the server process and automatically starts on reboot
 
-### Client (chromium-browser)
+#### Client (chromium-browser)
 
 - Default chromium-browser is used to launch index.html in kiosk mode (<a href="RPIConfig.md#rpi-autostart">see also ~/.config/autostart</a>)
 - index.html utilizes a META refresh to automatically refresh (separate from node-schedule)
@@ -78,14 +113,18 @@ When accessing Bistrack data, the RPi serves as both the server and client.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Proxy Mode
+## Proxy Routes
 
 Epicor's WMS system utilizes a combination of XML endpoints and a "Pulse board" application for reporting. Accessing this data programatically traditionally faced one of two hurdles:
 
 1. The returned data is in XML format or
 2. The server blocks cross-origin requests.
 
-BTPi’s proxy mode addresses both issues by accepting an "api" URL parameter, which is then requested via proxy with an unrestrictive Cross-Origin Resource Sharing (CORS) policy. For JSON requests, an additional "X-Requested-With" header is also sent to mimic an AJAX call. The endpoint data is returned in a response object as JSON. Depending on the type of endpoint being consumed, two routes are provided:
+BTPi’s proxy mode addresses both issues by accepting an "api" URL parameter, which is then requested via proxy with an unrestrictive Cross-Origin Resource Sharing (CORS) policy. For JSON requests, an additional "X-Requested-With" header is also sent to mimic an AJAX call. The endpoint data is returned in a response object as JSON.
+
+_Note:_ Configuring wms_proxy.host_pulse and/or wms_proxy.host_xmlep (see config-EXAMPLE.json) enables relative paths to be used in client side code.
+
+Depending on the type of endpoint being consumed, two routes are provided:
 
 1. **/proxy-xml**: The <a href="WMSEndpoints.md">various (undocumented) XML endpoints</a> were originally exposed for QlikView consumption, but contain useful data for BI developers. BTPi implements a GET method route /proxy-xml for these XML endpoints to access and convert the data to JSON. Note the JSON data path on the returned data will typically match the following pattern:
 
@@ -114,7 +153,13 @@ BTPi’s proxy mode addresses both issues by accepting an "api" URL parameter, w
 
 2. **/proxy-json**: Separately, Pulse Queries created in the WMS “Web UI” (More --> Pulse --> Pulse Query Entry) can be accessed using the /proxy-json GET route. This route bypasses the Cross-Origin Resource Sharing (CORS) policy and returns a JSON response object.
 
-Both WMS proxy routes (/proxy-xml and /proxy-json) can be accessed from a Dynamic Dashboard within BisTrack (e.g., fetch/JQuery). The following example shows the results of a call to the InventoryBySCE (/proxy-xml) for a selected product from within a Dynamic Dashboard:
+### Examples
+
+Both WMS proxy routes (/proxy-xml and /proxy-json) can be accessed from a Dynamic Dashboard within BisTrack (e.g., fetch/JQuery).
+
+#### XML (/proxy-xml)
+
+The following example shows the results of a call to the InventoryBySCE (/proxy-xml) for a selected product from within a Dynamic Dashboard:
 
 <a href="public/images/wms-product-bt.png">
     <img src="public/images/wms-product-bt.png" alt="Dashboard example" width="30%" height="30%" border="1">
@@ -129,6 +174,7 @@ The above example was generated with the following client-side JavaScript:
       // proxy-xml expects XML data and returns it as a JSON object
       url: "http://<BTPi-Server>:<port>/proxy-xml",
       data: {
+        // If wms_proxy.host_xmlep is configured, use relative path /rtiWeb/run?id=InventoryBySCE
         api: "http://<WMS-Endpoint>:<port>/rtiWeb/run?id=InventoryBySCE",
         stock_code: "DP-DPSB-4x6x12",
       },
@@ -172,11 +218,14 @@ The above example was generated with the following client-side JavaScript:
 </script>
 ```
 
+#### JSON (/proxy-json)
+
 Client-side code for a connection for a WMS Pulse query might resemble:
 
 ```sh
    url: "http://<BTPi-Server>:<port>/proxy-json",
    data: {
+      // If wms_proxy.host_pulse is configured, use relative path /Pulse/Query/runQuery
       api: "http://<WMS-Endpoint>:<port>/Pulse/Query/runQuery",
       // The "id" parameter should match your Pulse Query
       id: "lines_shipped_last_7_days",
