@@ -113,7 +113,7 @@ When accessing Bistrack data, the RPi serves as both the server and client.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Proxy Routes
+## WMS Access (Proxy Routes)
 
 Epicor's WMS system utilizes a combination of XML endpoints and a "Pulse board" application for reporting. Accessing this data programatically traditionally faced one of two hurdles:
 
@@ -174,8 +174,10 @@ The above example was generated with the following client-side JavaScript:
       // proxy-xml expects XML data and returns it as a JSON object
       url: "http://<BTPi-Server>:<port>/proxy-xml",
       data: {
-        // If wms_proxy.host_xmlep is configured, use relative path /rtiWeb/run?id=InventoryBySCE
-        api: "http://<WMS-Endpoint>:<port>/rtiWeb/run?id=InventoryBySCE",
+        // If wms_proxy.host_xmlep is configured, relative paths may be used
+        //api: "http://<WMS-Endpoint>:<port>/rtiWeb/run",
+        api: "/rtiWeb/run",
+        id: "InventoryBySCE",
         stock_code: "DP-DPSB-4x6x12",
       },
       method: "GET",
