@@ -23,7 +23,7 @@ This project creates a Node.js server on Raspberry Pi (RPi) hardware with the in
 <img src="public/images/overview.png" alt="Overview" width="30%" height="30%" border="1">
 </a>
 
-## Bistrack Mode
+## Bistrack Access
 
 Epicor’s Bistrack application utilizes a Microsoft SQL Server (MSSQL) back-end that BTPi accesses via the "mssql" Node package. Once configured, BTPi connects to the Bistrack database and executes all defined queries on a configurable interval (crontab-style). Query results are saved as JSON files for client-side scripting access.
 
