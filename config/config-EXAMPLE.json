@@ -16,6 +16,7 @@
     },
     "btpi": {
         "port": 3000,
+        "_comment_interval": "Cron format for scheduling the BTPi queries. This example runs every 30 minutes from 8 AM to 5 PM, Monday to Friday. See also https://crontab.guru/ for help with cron syntax",
         "interval": "*/30 8-17 * * 1-5"
     },
     "wms_proxy": {

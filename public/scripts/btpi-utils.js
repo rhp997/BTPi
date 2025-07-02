@@ -137,3 +137,67 @@ function loadQueryInTable(qName, tableObj) {
         showErrorTable(tableObj, `Error attempting to access JSON: ${qPath}. ${textstatus} : ${error}`);
     });
 }
+
+/* -----------------------------------------------------------------
+   Converts an array of JSON objects to a CSV string.
+   @param {Array<Object>} objArray - The array of JSON objects.
+   @returns {string} The CSV formatted string.
+ -----------------------------------------------------------------*/
+function convertToCSV(objArray) {
+    let array = typeof objArray != 'object' ? JSON.parse(objArray) : objArray;
+    let str = '';
+    let row = '';
+
+    // Extract headers (keys from the first object)
+    for (let index in array[0]) {
+        // Quote headers that contain commas or double quotes
+        row += '"' + index.replace(/"/g, '""') + '",';
+    }
+    row = row.slice(0, -1); // Remove trailing comma
+    str += row + '\r\n'; // Add header row to CSV string
+
+    // Iterate over each object in the array to get data rows
+    for (let i = 0; i < array.length; i++) {
+        let line = '';
+        for (let index in array[i]) {
+            if (line != '') line += ','
+            let value = array[i][index];
+            // Handle null/undefined values
+            if (value === null || typeof value === 'undefined') {
+                value = '';
+            }
+            // Ensure values are strings and escape double quotes
+            let stringValue = String(value).replace(/"/g, '""');
+            line += '"' + stringValue + '"';
+        }
+        str += line + '\r\n'; // Add data row to CSV string
+    }
+    return str;
+}
+
+/* -----------------------------------------------------------------
+   Triggers the download of a CSV file.
+   @param {string} filename - The desired filename for the CSV.
+   @param {string} csvString - The CSV content as a string.
+ -----------------------------------------------------------------*/
+function exportCSV(filename, csvString) {
+    // Create a Blob from the CSV string with the correct MIME type
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+
+    // Create a temporary anchor element
+    const link = document.createElement('a');
+    if (link.download !== undefined) { // Feature detection for download attribute
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden'; // Hide the link
+        document.body.appendChild(link);
+        link.click(); // Programmatically click the link to trigger download
+        document.body.removeChild(link); // Clean up
+        URL.revokeObjectURL(url); // Release the object URL
+    } else {
+        // Fallback for browsers that don't support the download attribute
+        // This might open the CSV in a new tab instead of downloading
+        window.open('data:text/csv;charset=utf-8,' + encodeURIComponent(csvString));
+    }
+}

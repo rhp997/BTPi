@@ -425,8 +425,7 @@ async function getDataByProxy(req, res, responseType) {
             // Set to avoid the "Not an ajax request" error in some APIs (like BisTrack WMS Pulse which uses Telerik/Kendo UI)
             'X-Requested-With': 'XMLHttpRequest'
           }
-        }
-        );
+        });
         if(responseType === apiRepsonseType.XML) {
           // Because XML is gross, convert the returned XML to JSON
           const parser = new xml2js.Parser();
@@ -462,7 +461,6 @@ async function getDataByProxy(req, res, responseType) {
   Expand as necessary to support other response types
 ======================================================================*/
 async function getAbsolutePath(urlToCheck, responseType) {
-
   let url = urlToCheck;
   if (!urlToCheck.startsWith('http://') && !urlToCheck.startsWith('https://')) {
     logger.info(`Partial URL value passed (${urlToCheck}); attempting to prefix with configured value`);
@@ -476,4 +474,3 @@ async function getAbsolutePath(urlToCheck, responseType) {
   }
   return url;
 }
-
