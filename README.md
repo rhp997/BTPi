@@ -109,7 +109,7 @@ When accessing Bistrack data, the RPi serves as both the server and client.
   - A text value indicates the last time the data or page was refreshed (see Heartbeat query)
 - Using JQuery and a text editor, the format of the webpage is easily changed
   - Instead of tablular data, consider widgets from Charts.js or similar
-  - A "url" attribute could be added to the META refresh to point to a new page (and the new page back or to a new page) in a daisy chain. Such a configuration would cycle through multiple views.
+  - A "url" attribute could be added to the META refresh to point to a new page (and the new page back or to a new page) in a daisy chain. Such a configuration would cycle through multiple views (see charts.html)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
