@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Uncomment to simply refresh without a redirect. Time is entered in seconds -->
+    <!-- meta http-equiv="refresh" content="300" -->
+    <!-- Redirect back to index.html in daisy-chain fashion -->
+    <meta http-equiv="refresh" content="300;url=/index.html" -- />
+    <title>Charts</title>
+    <script
+      src="https://code.jquery.com/jquery-3.7.1.min.js"
+      integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
+      crossorigin="anonymous"
+    ></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+  </head>
+
+  <body>
+    <div class="container px-5">
+      <div class="row mt-1">
+        <div class="">
+          <p class="h3 align-bottom p-2">Current Week</p>
+        </div>
+        <div class="d-flex align-items-start flex-row">
+          <div class="border p-2">
+            <canvas id="cyc_compl_cur"></canvas>
+          </div>
+          <div class="border p-2">
+            <canvas id="cyc_acc_cur"></canvas>
+          </div>
+          <div class="border p-2">
+            <canvas id="pa_by_loc"></canvas>
+          </div>
+        </div>
+        <div class="">
+          <p class="h3 align-bottom p-2">Last Two Months</p>
+        </div>
+        <div class="d-flex align-items-start flex-row" id="cycCurrent">
+          <div class="border p-2"><canvas id="cyc_compl_sel"></canvas></div>
+          <div class="border p-2"><canvas id="cyc_acc_sel"></canvas></div>
+        </div>
+        <div class="align-items-start flex-row w-25" id="cycDropdown">
+          <div class="p-2">
+            <label for="dateDropdown">Select a week:</label>
+            <select id="dateDropdown" class="form-select">
+              <option>Loading dates...</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="scripts/chart-utils.js"></script>
+    <script src="scripts/btpi-utils.js"></script>
+    <script>
+      $(document).ready(function () {
+        /*
+          All charts are derived from two pulse queries (see config/pulse_board_queries-EXAMPLE.sql):
+            1. db_cycle_ct_summary
+            2. db_pa_by_loc
+
+            Two of the charts are bound to a dropdown with week selections and can be filtered interactively
+            This page can be linked directly in a Dashboard using the URL option
+        */
+
+        /* ------------------------ CYCLE COUNTS ------------------------- */
+        fetch("/proxy-json?api=/Pulse/Query/runQuery&id=db_cycle_ct_summary", {
+          method: "GET",
+          headers: { "Content-Type": "application/json; charset=utf-8" },
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json(); // dataType: "json" is handled by .json()
+          })
+          .then(function (data) {
+            if (data && data.data && data.data.length > 0) {
+              // Find the index of the "Begin Date" column in the first row of data
+              const weekIndex = data.data[0].findIndex(
+                (item) => item.name === "Begin Date"
+              );
+              // Object of indices for the data we want to track
+              const dataIndices = {
+                required: 0,
+                complete: 1,
+                incomplete: 2,
+                accurate: 3,
+                inaccurate: 4,
+              };
+              // Create a flat array with the same length as the number of data indices. Initialize with 0s.
+              const initArray = createFlatArray(dataIndices);
+              // Main object of arrays; each key will be a week date, and the value will be an array of data
+              // The array will have the same length as the dataIndices object
+              let cycData = {};
+              // Create a key for the running total of all weeks
+              const lblAllWeeks = "All Weeks";
+              cycData[lblAllWeeks] = initArray.slice();
+              let lastWeek = "";
+              // Loop through each row of data
+              $.each(data.data, function (i, row) {
+                if (!cycData[row[weekIndex].value]) {
+                  // Create a key named for the week and copy the initial array to the new week entry
+                  // Each week will have a corresponding array of data to increment according to the dataIndices
+                  cycData[row[weekIndex].value] = initArray.slice();
+                }
+                lastWeek = row[weekIndex].value;
+                // Loop through each cell in the row, incrementing the appropriate index in the cycData array
+                // based on the column name
+                $.each(row, function (j, cell) {
+                  if (cell.name === "Required Locs") {
+                    // Increment the required count for the week
+                    cycData[row[weekIndex].value][dataIndices.required] +=
+                      parseInt(cell.value) || 0;
+                    cycData[lblAllWeeks][dataIndices.required] +=
+                      parseInt(cell.value) || 0;
+                  } else if (cell.name === "Completed Locs") {
+                    // Increment the complete count for the week
+                    cycData[row[weekIndex].value][dataIndices.complete] +=
+                      parseInt(cell.value) || 0;
+                    cycData[lblAllWeeks][dataIndices.complete] +=
+                      parseInt(cell.value) || 0;
+                  } else if (cell.name === "Incomplete Locs") {
+                    // Increment the incomplete count for the week
+                    cycData[row[weekIndex].value][dataIndices.incomplete] +=
+                      parseInt(cell.value) || 0;
+                    cycData[lblAllWeeks][dataIndices.incomplete] +=
+                      parseInt(cell.value) || 0;
+                  } else if (cell.name === "Total Correct") {
+                    // Increment the accurate count for the week
+                    cycData[row[weekIndex].value][dataIndices.accurate] +=
+                      parseInt(cell.value) || 0;
+                    cycData[lblAllWeeks][dataIndices.accurate] +=
+                      parseInt(cell.value) || 0;
+                  } else if (cell.name === "Total Incorrect") {
+                    // Increment the inaccurate count for the week
+                    cycData[row[weekIndex].value][dataIndices.inaccurate] +=
+                      parseInt(cell.value) || 0;
+                    cycData[lblAllWeeks][dataIndices.inaccurate] +=
+                      parseInt(cell.value) || 0;
+                  }
+                });
+              });
+
+              // Render the current week charts
+              createQVDonut(
+                getChartConfig(
+                  "cyc_compl_cur",
+                  "Current Week Completed",
+                  "Completed",
+                  [
+                    cycData[lastWeek][dataIndices.complete],
+                    cycData[lastWeek][dataIndices.incomplete],
+                  ]
+                )
+              );
+              createQVDonut(
+                getChartConfig(
+                  "cyc_acc_cur",
+                  "Current Week Accuracy",
+                  "Accurate",
+                  [
+                    cycData[lastWeek][dataIndices.accurate],
+                    cycData[lastWeek][dataIndices.inaccurate],
+                  ]
+                )
+              );
+
+              // Render the selection charts
+              createQVDonut(
+                getChartConfig(
+                  "cyc_compl_sel",
+                  lblAllWeeks + " Completed",
+                  "Completed",
+                  [
+                    cycData[lblAllWeeks][dataIndices.complete],
+                    cycData[lblAllWeeks][dataIndices.incomplete],
+                  ]
+                )
+              );
+              createQVDonut(
+                getChartConfig(
+                  "cyc_acc_sel",
+                  lblAllWeeks + " Accuracy",
+                  "Accurate",
+                  [
+                    cycData[lblAllWeeks][dataIndices.accurate],
+                    cycData[lblAllWeeks][dataIndices.inaccurate],
+                  ]
+                )
+              );
+
+              // Create the dropdown options
+              const $dateDropdown = $("#dateDropdown");
+              $dateDropdown.empty(); // Clear the "Loading dates..." option
+              $dateDropdown.append($("<option>").text("Choose..."));
+
+              // Populate the dropdown with week dates
+              $.each(cycData, function (i, date) {
+                $dateDropdown.append($("<option>").text(i));
+              });
+
+              // Bind the change event to the dropdown
+              $dateDropdown.on("change", function () {
+                // selVal is the selected week date or "All"
+                const selVal = $(this).val();
+                // Get the "Completed Selected" chart and update it with the selected week data
+                const compChart = Chart.getChart("cyc_compl_sel");
+                if (compChart) {
+                  if (selVal && cycData[selVal]) {
+                    // Set the data and title for the selected week
+                    compChart.data.datasets[0].data = [
+                      cycData[selVal][dataIndices.complete],
+                      cycData[selVal][dataIndices.incomplete],
+                    ];
+                    compChart.options.plugins.title.text =
+                      selVal + " Completed";
+                  } else {
+                    compChart.data.datasets[0].data = [
+                      cycData[lblAllWeeks][dataIndices.complete],
+                      cycData[lblAllWeeks][dataIndices.incomplete],
+                    ];
+                    compChart.options.plugins.title.text =
+                      lblAllWeeks + " Completed";
+                  }
+                  compChart.data.datasets[0].label = selVal || lblAllWeeks;
+                  const pctCompl = Math.round(
+                    (compChart.data.datasets[0].data[0] /
+                      (compChart.data.datasets[0].data[0] +
+                        compChart.data.datasets[0].data[1])) *
+                      100
+                  );
+                  // Set the background color based on the percentage completed
+                  compChart.data.datasets[0].backgroundColor[0] =
+                    getBgColor(pctCompl);
+                  // Update the inner label (plugin) with the percentage completed label
+                  compChart.config.plugins[0].label = pctCompl.toString() + "%";
+                  // Redraw the chart with the new data
+                  compChart.update();
+                } else {
+                  console.error("cyc_compl_sel chart not found");
+                }
+                // Get the "Accuracy Selected" chart and update it with the selected week data
+                const accChart = Chart.getChart("cyc_acc_sel"); // <canvas> id
+                if (accChart) {
+                  if (selVal && cycData[selVal]) {
+                    // Set the data and title for the selected week
+                    accChart.data.datasets[0].data = [
+                      cycData[selVal][dataIndices.accurate],
+                      cycData[selVal][dataIndices.inaccurate],
+                    ];
+                    accChart.options.plugins.title.text = selVal + " Accuracy";
+                  } else {
+                    accChart.data.datasets[0].data = [
+                      cycData[lblAllWeeks][dataIndices.accurate],
+                      cycData[lblAllWeeks][dataIndices.inaccurate],
+                    ];
+                    accChart.options.plugins.title.text =
+                      lblAllWeeks + " Accuracy";
+                  }
+                  accChart.data.datasets[0].label = selVal || lblAllWeeks;
+                  const pctAcc = Math.round(
+                    (accChart.data.datasets[0].data[0] /
+                      (accChart.data.datasets[0].data[0] +
+                        accChart.data.datasets[0].data[1])) *
+                      100
+                  );
+                  // Set the background color based on the percentage accurate
+                  accChart.data.datasets[0].backgroundColor[0] =
+                    getBgColor(pctAcc);
+                  // Update the inner label (plugin) with the percentage accurate label
+                  accChart.config.plugins[0].label = pctAcc.toString() + "%";
+                  // Redraw the chart with the new data
+                  accChart.update();
+                } else {
+                  console.error("cyc_acc_sel chart not found");
+                }
+              });
+            } else {
+              console.error("No data found in JSON file.");
+              return;
+            }
+          })
+          .catch(function (jqXHR, textStatus, errorThrown) {
+            const msg = `Error loading JSON file ${filePath}: ${textStatus}, ${errorThrown}`;
+            console.error(msg);
+          });
+
+        /* ------------------------ PUT AWAYS ------------------------- */
+        fetch("/proxy-json?api=/Pulse/Query/runQuery&id=db_pa_by_loc", {
+          method: "GET",
+          headers: { "Content-Type": "application/json; charset=utf-8" },
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json(); // dataType: "json" is handled by .json()
+          })
+          .then(function (data) {
+            // Register the Chart.js Data Labels plugin
+            // Chart.register(ChartDataLabels);
+            if (data.data && data.data.length > 0) {
+              let paData = [];
+              $.each(data.data, function (i, item) {
+                let line = { loc: undefined, cnt: undefined };
+                $.each(item, function (j, cell) {
+                  // Check if the cell is a location and count
+                  if (cell.name === "LOCATION") {
+                    line.loc = cell.value;
+                  } else if (cell.name === "PA_ITEMS") {
+                    line.cnt = parseInt(cell.value) || 0;
+                  }
+                  // If we have both location and count, add to the data array
+                  if (line.loc && line.cnt) {
+                    paData.push(line);
+                  }
+                });
+              });
+              // Sort by count descending to make a more visually appealing chart
+              paData.sort((a, b) => b.cnt - a.cnt);
+              // Create an array of arrays for chart data
+              // The first element is the location, the second is the count, and the third is the color
+              let chartInfo = [];
+              // If we have more data than colors, group the last items as "Other"
+              const lblOther = "Other";
+              const maxColors = COLORS.length - 1;
+              let ttlPAs = 0;
+              paData.forEach((item, index) => {
+                if (index < maxColors) {
+                  chartInfo.push([item.loc, item.cnt, getSliceColor(index)]);
+                } else {
+                  // If we have more data than colors, combine the counts for the remaining items
+                  !chartInfo[maxColors]
+                    ? chartInfo.push([
+                        lblOther,
+                        parseInt(item.cnt),
+                        getColor(maxColors),
+                      ])
+                    : (chartInfo[maxColors][1] += parseInt(item.cnt));
+                }
+                ttlPAs += parseInt(item.cnt);
+              });
+
+              const config = {
+                type: "pie",
+                data: {
+                  labels: chartInfo.map((item) => item[0]),
+                  datasets: [
+                    {
+                      label: "Put aways at location",
+                      data: chartInfo.map((item) => item[1]),
+                      backgroundColor: chartInfo.map((item) => item[2]),
+                      borderWidth: 1,
+                    },
+                  ],
+                },
+                options: {
+                  hoverOffset: 20,
+                  plugins: {
+                    legend: {
+                      display: true,
+                    },
+                    datalabels: {
+                      color: "white",
+                      align: "end",
+                    },
+                    title: {
+                      display: true,
+                      text: `${ttlPAs} total Put Aways`,
+                      color: "black",
+                      position: "bottom",
+                      align: "center",
+                      font: { weight: "bold" },
+                    },
+                  },
+                },
+              };
+
+              const ctx = document.getElementById("pa_by_loc").getContext("2d");
+              new Chart(ctx, config);
+            } else {
+              console.warn("No data found");
+            }
+          })
+          .catch(function (jqXHR, textStatus, errorThrown) {
+            const msg = `Error loading JSON file ${filePath}: ${textStatus}, ${errorThrown}`;
+            console.error(msg);
+          });
+      });
+    </script>
+  </body>
+</html>
