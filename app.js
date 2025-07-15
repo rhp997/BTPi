@@ -1,15 +1,15 @@
-const express = require('express');
+const express = require("express");
 const app = express();
-const sql = require('mssql');
-const fs = require('fs');
-const path = require('path');
-const nconf = require('nconf');
+const sql = require("mssql");
+const fs = require("fs");
+const path = require("path");
+const nconf = require("nconf");
 
 /* cors-proxy additions */
-var url = require('url');
-const cors = require('cors');
-const axios = require('axios');
-const xml2js = require('xml2js');
+var url = require("url");
+const cors = require("cors");
+const axios = require("axios");
+const xml2js = require("xml2js");
 /*
     Set header defaults with cors:
     "origin": "*",
@@ -22,17 +22,17 @@ app.use(cors());
 // For distinguishing which type of API response is expected for proxy routes
 const apiRepsonseType = Object.freeze({
   XML: "xml",
-  JSON: "json"
+  JSON: "json",
 });
 
 // Winston handles logging; moment-timezone formats timestamps; winston-daily-rotate-file rotates logs daily
 const winston = require("winston");
-const moment = require('moment-timezone');
-require('winston-daily-rotate-file');
+const moment = require("moment-timezone");
+require("winston-daily-rotate-file");
 // Node-schedule is used to run the queries on a schedule
-const schedule = require('node-schedule');
-const { error } = require('console');
-const appName = require('./package.json').name;
+const schedule = require("node-schedule");
+const { error } = require("console");
+const appName = require("./package.json").name;
 
 // Set up the logger
 const logger = winston.createLogger({
@@ -41,8 +41,9 @@ const logger = winston.createLogger({
   format: winston.format.combine(
     // Use the current time zone for the timestamp
     winston.format.timestamp({
-      format: () => moment().tz(Intl.DateTimeFormat().resolvedOptions().timeZone).format()
-  }),
+      format: () =>
+        moment().tz(Intl.DateTimeFormat().resolvedOptions().timeZone).format(),
+    }),
     winston.format.json()
   ),
   // Log everything to to console and <appName>-YYYY-MM-DD.json, and only warnings and errors to error.json
@@ -50,19 +51,19 @@ const logger = winston.createLogger({
   transports: [
     new winston.transports.Console({ format: winston.format.cli() }),
     new winston.transports.File({
-      filename: path.join(__dirname, 'logs', "error.json"),
+      filename: path.join(__dirname, "logs", "error.json"),
       level: "warn",
-      format: winston.format.json()
+      format: winston.format.json(),
     }),
     // Rotate logs daily with the date pattern and keep 14 days of logs
     new winston.transports.DailyRotateFile({
-      filename: path.join(__dirname, 'logs', appName + "-%DATE%.json"),
-      datePattern: 'YYYY-MM-DD',
+      filename: path.join(__dirname, "logs", appName + "-%DATE%.json"),
+      datePattern: "YYYY-MM-DD",
       zippedArchive: true,
-      level: 'info',
+      level: "info",
       format: winston.format.json(),
-      maxFiles: '14d'
-   })
+      maxFiles: "14d",
+    }),
   ],
 });
 
@@ -72,38 +73,67 @@ const logger = winston.createLogger({
   If the config files are missing, no errors are raised. However, if the necessary keys are not passed
   in another way (env, argv), an error is thrown. Also, nconf is the bee's knees.
 */
-nconf.argv()
-.env()
-.file('config', { file: path.join(__dirname, 'config', 'config.json')} )
-.file( 'queries', { file: path.join(__dirname, 'config', 'queries.json') })
-.defaults({
+nconf
+  .argv()
+  .env({
+    // Separate nested environment variables with a double underscore; e.g., BTPI__PORT=3000
+    separator: "__",
+    // ENV variables that are UPPERCASE are converted to lowercase here
+    lowerCase: true,
+    parseValues: true,
+    match: /^BTPI|^DATABASE|^WMS_PROXY/i,
+  })
+  .file("config", { file: path.join(__dirname, "config", "config.json") })
+  .file("queries", { file: path.join(__dirname, "config", "queries.json") })
+  .defaults({
     btpi: {
       // Default port
       port: 3000,
-      interval: "*/30 8-17 * * 1-5"
+      interval: "*/30 8-17 * * 1-5",
     },
+    // Add defaults for the required components; this allows container builds to succeed
+    // even though the defaults won't work in production
     database: {
-      connectionTimeout: 5000
-    }
+      user: "dbuser",
+      server: "dbserver",
+      password: "dbpass",
+      database: "db",
+      connectionTimeout: 5000,
+    },
+    queries: [
+      {
+        Name: "CurDate",
+        Title: "Current Date",
+        SQL: "SELECT GETDATE() AS CurrentDate",
+        File: path.join(__dirname, "public", "data", "CurDate.json"),
+        Enabled: true,
+      },
+    ],
   })
-  .required(['btpi', 'database', 'database:user', 'database:server', 'database:password', 'database:database', 'queries']);
-
+  .required([
+    "btpi",
+    "database",
+    "database:user",
+    "database:server",
+    "database:password",
+    "database:database",
+    "queries",
+  ]);
 // Think globally, act within local variable scope ... doh
-const queries = nconf.get('queries');
-const port = nconf.get('btpi:port');
-const intvl = nconf.get('btpi:interval');
-const pulse = nconf.get('wms_proxy:host_pulse');
-const xmlep = nconf.get('wms_proxy:host_xmlep');
+const queries = nconf.get("queries");
+const port = nconf.get("btpi:port");
+const intvl = nconf.get("btpi:interval");
+const pulse = nconf.get("wms_proxy:host_pulse");
+const xmlep = nconf.get("wms_proxy:host_xmlep");
 
-//console.log("Doh: " + nconf.get("wms_proxy:host_xmlep"));
 // Publish the public folder
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, "public")));
 
 // TODO: Use main config file as default, but allow individual overrides for each query
 logger.info(`Creating schedule with frequency ${intvl}`);
 // Load the configuration's frequencey (crontab format) and run all queries on that schedule
-const job = schedule.scheduleJob(intvl, function(){
-  logger.info('Running scheduled job');
+const job = schedule.scheduleJob(intvl, function () {
+  logger.info("Running scheduled job");
   // Keep the data fresh by automatically running the queries
   runQueries(queries);
 });
@@ -126,11 +156,21 @@ function sleep(sleepyTime) {
     @param {Integer} retryAttempts - Number of retry attempts
     @returns {Promise<boolean>} - A promise that resolves to true if connectivity is established or false otherwise
  ----------------------------------------------------------------- */
-async function checkConnection(connectTimeout = 5000, sleepyTime = 3000, retryAttempts = 1) {
+async function checkConnection(
+  connectTimeout = 5000,
+  sleepyTime = 3000,
+  retryAttempts = 1
+) {
   // Base connectivity status on access to these sites with generally high uptime
-  const sites = ['https://google.com', 'https://opendns.com/', 'https://azure.microsoft.com/', 'https://facebook.com/', 'https://www.wikipedia.org/'];
+  const sites = [
+    "https://google.com",
+    "https://opendns.com/",
+    "https://azure.microsoft.com/",
+    "https://facebook.com/",
+    "https://www.wikipedia.org/",
+  ];
   // Keep retryAttempts below sites length. Note, total attempts = retryAttempts + 1
-  if(retryAttempts >= sites.length) retryAttempts = sites.length - 1;
+  if (retryAttempts >= sites.length) retryAttempts = sites.length - 1;
   // Declare outside of block to use as return value
   let connected = false;
   // Loop until retryAttempts are exhausted or connectivity is established
@@ -141,13 +181,16 @@ async function checkConnection(connectTimeout = 5000, sleepyTime = 3000, retryAt
       cache: "no-cache",
       headers: { "Content-Type": "application/json" },
       referrerPolicy: "no-referrer",
-      signal: AbortSignal.timeout(connectTimeout)
-    }).then(() => true)
-    .catch(() => false);
+      signal: AbortSignal.timeout(connectTimeout),
+    })
+      .then(() => true)
+      .catch(() => false);
 
-    logger.info(`Checking connectivity using site: ${sites[i]}, connected = ${connected}`);
+    logger.info(
+      `Checking connectivity using site: ${sites[i]}, connected = ${connected}`
+    );
 
-    if(connected) {
+    if (connected) {
       // Connected; break and return
       break;
     } else {
@@ -170,43 +213,59 @@ async function checkConnection(connectTimeout = 5000, sleepyTime = 3000, retryAt
  ----------------------------------------------------------------- */
 async function runQueries(queries, timeout = 5000) {
   // Check if connected to the internet; sleep 3 s between attempts, retry up to 4 different times (5 attempts total)
-  if(await checkConnection(timeout, 3000, 4)) {
+  if (await checkConnection(timeout, 3000, 4)) {
     let retVal = true;
     const queryList = [];
     try {
       const curDT = new Date().toUTCString();
       // The "database" config option should be a valid mssql Config Object
       await sql.connect(nconf.get("database"));
+      logger.info(
+        `Connected to database ${nconf.get(
+          "database:database"
+        )} on server ${nconf.get("database:server")}`
+      );
       for (let i = 0; i < queries.length; i++) {
-        if(queries[i].Enabled) {
+        if (queries[i].Enabled) {
           logger.info(`Executing query ${queries[i].Name}`);
           const queryResults = (await sql.query(queries[i].SQL)).recordsets[0];
           const jsonData = JSON.stringify(queryResults, null, 2);
           const filePath = queries[i].File;
           //const filePath = path.join(__dirname, `public/data/query${i}.json`);
-          await fs.promises.writeFile(filePath, jsonData, 'utf8');
-          logger.info(`Query results written to ${filePath} with last-modified date ${curDT}`);
+          await fs.promises.writeFile(filePath, jsonData, "utf8");
+          logger.info(
+            `Query results written to ${filePath} with last-modified date ${curDT}`
+          );
           queries[i].LastModified = curDT;
           queries[i].Error = "";
           // Create a sanitized file (no SQL) for use by the client
           let obj = {
-            "Name": queries[i].Name,
-            "Title": queries[i].Title,
-            "File": queries[i].File.replace('public/', ''),
+            Name: queries[i].Name,
+            Title: queries[i].Title,
+            File: queries[i].File.replace("public/", ""),
           };
           queryList.push(obj);
         }
       }
       if (queryList.length >= 1) {
         // Write the query list to a JSON file. Sanitized list of queries that successfully ran and their file paths
-        const queryListPath = path.join(__dirname, 'public', 'data', 'queryList.json');
-        await fs.promises.writeFile(queryListPath, JSON.stringify(queryList, null, 2), 'utf8');
+        const queryListPath = path.join(
+          __dirname,
+          "public",
+          "data",
+          "queryList.json"
+        );
+        await fs.promises.writeFile(
+          queryListPath,
+          JSON.stringify(queryList, null, 2),
+          "utf8"
+        );
         logger.info(`Query list written to ${queryListPath}`);
       } else {
-        logger.warn('No queries were executed');
+        logger.warn("No queries were executed");
       }
     } catch (err) {
-      logger.error('runQueries:', err);
+      logger.error("runQueries:", err);
       retVal = false;
     } finally {
       sql.close();
@@ -222,38 +281,44 @@ async function runQueries(queries, timeout = 5000) {
 /* ======================================================================
   Route to handle POST requests to the root URL
   ======================================================================*/
-app.post('/', (req, res) => {
-  res.status(200).send('POST route not implemented');
-})
+app.post("/", (req, res) => {
+  res.status(200).send("POST route not implemented");
+});
 
 /* ======================================================================
   Route to handle GET requests to the root URL
   ======================================================================*/
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   //Serve up index.html by default
-  res.sendFile(path.join(__dirname, '/index.html'));
-})
+  res.sendFile(path.join(__dirname, "/index.html"));
+});
 
 /* ======================================================================
   Route to handle POST requests to /data
   Executes all SQL query objects and writes each result to a JSON file
   If successful, sets the last-modified header to the date and time the file was written
     ======================================================================*/
-app.post('/data', (req, res) => {
-  runQueries(queries).then(() => {
-    const qObj = queries.find(obj => obj.LastModified !== '');
-    const lMod = (qObj) ? qObj.LastModified : new Date().toUTCString();
-    res.setHeader('Last-Modified', lMod);
-    res.sendStatus(200);
-  }).catch((err) => {
-    // TODO: The Error property on the query object doesn't work; ideally this would store information on individual query results. Delete .Error?
-    // Find the first query object with a non-empty error message
-    const errMsg = queries.find(obj => obj.Error !== '');
-    const msg = (errMsg) ? `Failed to create file ${errMsg.File} with error ${errMsg.Error}` : 'undefined error';
-    logger.error(msg);
-    res.status(500).send(`Internal server error in ${req.path} route: ${msg}`);
-  });
-})
+app.post("/data", (req, res) => {
+  runQueries(queries)
+    .then(() => {
+      const qObj = queries.find((obj) => obj.LastModified !== "");
+      const lMod = qObj ? qObj.LastModified : new Date().toUTCString();
+      res.setHeader("Last-Modified", lMod);
+      res.sendStatus(200);
+    })
+    .catch((err) => {
+      // TODO: The Error property on the query object doesn't work; ideally this would store information on individual query results. Delete .Error?
+      // Find the first query object with a non-empty error message
+      const errMsg = queries.find((obj) => obj.Error !== "");
+      const msg = errMsg
+        ? `Failed to create file ${errMsg.File} with error ${errMsg.Error}`
+        : "undefined error";
+      logger.error(msg);
+      res
+        .status(500)
+        .send(`Internal server error in ${req.path} route: ${msg}`);
+    });
+});
 
 /* ======================================================================
   Route to handle GET requests to the /data route
@@ -268,49 +333,73 @@ app.post('/data', (req, res) => {
   contentType: "application/json; charset=utf-8",
   method: "GET"
   ======================================================================*/
-app.get('/data', (req, res) => {
+app.get("/data", (req, res) => {
   // Allow the client to request a specific query by name. Allow the "Name" parameter to be case insensitive.
   // Note: The query name must exactly match (case sensitive) the "Name" property in the queries array.
   let queryName = req.query.name || req.query.Name;
   if (queryName) {
-      // Check if the query name exists in the queries array
-    const queryObj = queries.find(obj => obj.Name === queryName);
+    // Check if the query name exists in the queries array
+    const queryObj = queries.find((obj) => obj.Name === queryName);
     if (queryObj && queryObj.Enabled) {
-       checkConnection(nconf.get("database:connectionTimeout"), 3000, 4).then(() => {
-         // Connection is good, proceed with query execution
-         sql.connect(nconf.get("database")).then(() => {
-           // Execute the query
-           sql.query(queryObj.SQL).then((queryResults) => {
-             // Return the results as JSON
-             res.json(queryResults.recordsets[0]);
-           }).catch(() => {
-             // Query execution failed
-             logger.error(`Query execution failed for "${queryName}."`);
-             logger.error(`SQL Error: ${error.message}`);
-             res.status(500).send(`Query execution failed for "${queryName}." See log for details`);
-           }).finally(() => {
-              sql.close();
-           });
-         }).catch(() => {
-           // Connection failed
-           logger.error(`Database connection failed for "${queryName}."`);
-           logger.error(`DB Conn Error: ${error.message}`);
-           res.status(500).send(`Database connection failed for "${queryName}." See log for details`);
-         });
-       }).catch(() => {
-         // Connectivity check failed
-         logger.error(`No internet or database connection"`);
-         res.status(500).send(`No internet or database connection failed for "${queryName}." See log for details`);
-       });
+      checkConnection(nconf.get("database:connectionTimeout"), 3000, 4)
+        .then(() => {
+          // Connection is good, proceed with query execution
+          sql
+            .connect(nconf.get("database"))
+            .then(() => {
+              // Execute the query
+              sql
+                .query(queryObj.SQL)
+                .then((queryResults) => {
+                  // Return the results as JSON
+                  res.json(queryResults.recordsets[0]);
+                })
+                .catch(() => {
+                  // Query execution failed
+                  logger.error(`Query execution failed for "${queryName}."`);
+                  logger.error(`SQL Error: ${error.message}`);
+                  res
+                    .status(500)
+                    .send(
+                      `Query execution failed for "${queryName}." See log for details`
+                    );
+                })
+                .finally(() => {
+                  sql.close();
+                });
+            })
+            .catch(() => {
+              // Connection failed
+              logger.error(`Database connection failed for "${queryName}."`);
+              logger.error(`DB Conn Error: ${error.message}`);
+              res
+                .status(500)
+                .send(
+                  `Database connection failed for "${queryName}." See log for details`
+                );
+            });
+        })
+        .catch(() => {
+          // Connectivity check failed
+          logger.error(`No internet or database connection"`);
+          res
+            .status(500)
+            .send(
+              `No internet or database connection failed for "${queryName}." See log for details`
+            );
+        });
     } else {
       // If the query name is not found or not enabled, return a 404 error
       logger.warn(`Query "${queryName}" not found or not enabled`);
       res.status(404).send(`Query "${queryName}" not found or not enabled`);
     }
   } else {
-    res.status(200).send({ message: 'No query name specified. Please provide a query name using the Name parameter.' });
+    res.status(200).send({
+      message:
+        "No query name specified. Please provide a query name using the Name parameter.",
+    });
   }
-})
+});
 
 /* ======================================================================
   Route to handle GET proxy requests where the endpoint or api being queried
@@ -338,8 +427,8 @@ values with a call to encodeURIComponent()
 
 
   ======================================================================*/
-app.get('/proxy-xml', async (req, res) => {
-    await getDataByProxy(req, res, apiRepsonseType.XML);
+app.get("/proxy-xml", async (req, res) => {
+  await getDataByProxy(req, res, apiRepsonseType.XML);
 });
 
 /* ======================================================================
@@ -361,7 +450,7 @@ Where api should be the base URL of the endpoint.
 Listing the parameters in the "data" section negates the need to wrap param
 values with a call to encodeURIComponent()
   ======================================================================*/
-app.get('/proxy-json', async (req, res) => {
+app.get("/proxy-json", async (req, res) => {
   await getDataByProxy(req, res, apiRepsonseType.JSON);
 });
 
@@ -371,10 +460,10 @@ app.get('/proxy-json', async (req, res) => {
 app.listen(port, () => {
   logger.info(`Server started on port ${port}`);
   // Create an initial set of files on startup so the application has something to work with
-  const numEnabled = queries.filter(obj => obj.Enabled === true).length;
+  const numEnabled = queries.filter((obj) => obj.Enabled === true).length;
   logger.info(`Initializing ${numEnabled} query(s) on startup`);
   runQueries(queries);
-})
+});
 
 /* ======================================================================
   Function to handle proxy requests for endpoints retruning data in both
@@ -400,7 +489,10 @@ async function getDataByProxy(req, res, responseType) {
         if (req.query.hasOwnProperty(key) && key.toLowerCase() !== "api") {
           if (key.toLowerCase() === "stock_code") {
             // WMS requires uppercase stock codes and uses a space placeholder for underscores
-            const val = req.query[key].toUpperCase().replace("_", "%20").replace("#", "%23");
+            const val = req.query[key]
+              .toUpperCase()
+              .replace("_", "%20")
+              .replace("#", "%23");
             params += `&${key}=${val}`;
           } else {
             params += `&${key}=${req.query[key]}`;
@@ -409,29 +501,29 @@ async function getDataByProxy(req, res, responseType) {
       }
       // Check for an existing "?"; if not found, add one
       let fullURL = req.query.api + params;
-      if(fullURL.indexOf("?") === -1) {
+      if (fullURL.indexOf("?") === -1) {
         // Switch the "&" to a "?"
         fullURL = req.query.api + "?" + params.slice(1);
       }
       // Convert the URL to an object and test validity
       const url = new URL(fullURL);
       // Origin will be null when unknown protocol is used
-      if (url.origin !== 'null') {
+      if (url.origin !== "null") {
         logger.info(`${responseType} proxy fetching api ${url.href}`);
         // CORS magic happens here; axios is not subject to single-domain policy and acts as a proxy
         //const response = await axios.get(url.href);
         const response = await axios.get(url.href, {
           headers: {
             // Set to avoid the "Not an ajax request" error in some APIs (like BisTrack WMS Pulse which uses Telerik/Kendo UI)
-            'X-Requested-With': 'XMLHttpRequest'
-          }
+            "X-Requested-With": "XMLHttpRequest",
+          },
         });
-        if(responseType === apiRepsonseType.XML) {
+        if (responseType === apiRepsonseType.XML) {
           // Because XML is gross, convert the returned XML to JSON
           const parser = new xml2js.Parser();
           parser.parseString(response.data, (err, result) => {
             if (err) {
-              errorMsg = 'Error parsing XML ';
+              errorMsg = "Error parsing XML ";
               if (err.message) errorMsg += err.message;
             } else {
               res.json(result);
@@ -451,8 +543,10 @@ async function getDataByProxy(req, res, responseType) {
       res.status(500).json({ error: errorMsg });
     }
   } catch (error) {
-    logger.error('Proxy error:', error);
-    res.status(500).json({ error: `Proxy request failed (${error.code}). Check log for details.` });
+    logger.error("Proxy error:", error);
+    res.status(500).json({
+      error: `Proxy request failed (${error.code}). Check log for details.`,
+    });
   }
 }
 
@@ -462,13 +556,23 @@ async function getDataByProxy(req, res, responseType) {
 ======================================================================*/
 async function getAbsolutePath(urlToCheck, responseType) {
   let url = urlToCheck;
-  if (!urlToCheck.startsWith('http://') && !urlToCheck.startsWith('https://')) {
-    logger.info(`Partial URL value passed (${urlToCheck}); attempting to prefix with configured value`);
+  if (!urlToCheck.startsWith("http://") && !urlToCheck.startsWith("https://")) {
+    logger.info(
+      `Partial URL value passed (${urlToCheck}); attempting to prefix with configured value`
+    );
     // Assume XML responseTypes should be the xmlep value, JSON response types should be the pulse value
     if (responseType === apiRepsonseType.XML) {
-      (xmlep) ? url = `${xmlep}${url}` : logger.warn(`No WMS XML endpoint configured (wms_proxy.host_xmlep); unable to prefix relative path`);
+      xmlep
+        ? (url = `${xmlep}${url}`)
+        : logger.warn(
+            `No WMS XML endpoint configured (wms_proxy.host_xmlep); unable to prefix relative path`
+          );
     } else if (responseType === apiRepsonseType.JSON) {
-      (pulse) ? url = `${pulse}${url}` : logger.warn(`No WMS Pulse endpoint configured (wms_proxy.host_pulse); unable to prefix relative path`);
+      pulse
+        ? (url = `${pulse}${url}`)
+        : logger.warn(
+            `No WMS Pulse endpoint configured (wms_proxy.host_pulse); unable to prefix relative path`
+          );
     }
     logger.info(`Full url = ${url}`);
   }
