@@ -99,16 +99,11 @@ nconf
       password: "dbpass",
       database: "db",
       connectionTimeout: 5000,
-    },
-    queries: [
-      {
-        Name: "CurDate",
-        Title: "Current Date",
-        SQL: "SELECT GETDATE() AS CurrentDate",
-        File: path.join(__dirname, "public", "data", "CurDate.json"),
-        Enabled: true,
+      options: {
+        encrypt: false,
       },
-    ],
+    },
+    queries: [],
   })
   .required([
     "btpi",
@@ -212,6 +207,10 @@ async function checkConnection(
   queries are successful, or false if any query fails
  ----------------------------------------------------------------- */
 async function runQueries(queries, timeout = 5000) {
+  if (queries.length < 1) {
+    logger.warn("No queries to run. Please check the configuration.");
+    return false;
+  }
   // Check if connected to the internet; sleep 3 s between attempts, retry up to 4 different times (5 attempts total)
   if (await checkConnection(timeout, 3000, 4)) {
     let retVal = true;
@@ -262,7 +261,7 @@ async function runQueries(queries, timeout = 5000) {
         );
         logger.info(`Query list written to ${queryListPath}`);
       } else {
-        logger.warn("No queries were executed");
+        logger.warn("No enabled queries found to run. Nothing to do.");
       }
     } catch (err) {
       logger.error("runQueries:", err);
