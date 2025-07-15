@@ -115,10 +115,11 @@ When accessing Bistrack data, the RPi serves as both the server and client.
 
 ## WMS Access (Proxy Routes)
 
-Epicor's WMS system utilizes a combination of XML endpoints and a "Pulse board" application for reporting. Accessing this data programatically traditionally faced one of two hurdles:
+Epicor's WMS system utilizes a combination of XML endpoints and a "Pulse board" application for reporting. Accessing this data programatically traditionally faced one of three hurdles:
 
 1. The returned data is in XML format or
-2. The server blocks cross-origin requests.
+2. The endpoint returns "Not an ajax request"
+3. The server blocks cross-origin requests
 
 BTPi’s proxy mode addresses both issues by accepting an "api" URL parameter, which is then requested via proxy with an unrestrictive Cross-Origin Resource Sharing (CORS) policy. For JSON requests, an additional "X-Requested-With" header is also sent to mimic an AJAX call. The endpoint data is returned in a response object as JSON.
 
