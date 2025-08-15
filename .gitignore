@@ -8,3 +8,4 @@ package-lock.json
 srd.js
 *.yaml
 *test*
+config/config2-EXAMPLE.json
