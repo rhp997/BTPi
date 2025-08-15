@@ -59,6 +59,53 @@ function loadJSON(filePath) {
     });
 }
 
+// DataTableID = DataTableID || ($('div[class^="Component"]')[0].id);
+
+/* ----------------------------
+  Description: Passed a data table ID and a (1-based) column index, returns a promise
+  that resolves to a JSON object for the column. Allows dashboards to utilize queries
+  that return JSON objects in multiple columns.
+---------------------------- */
+function loadJsonFromDTCol(DataTableID, colIndex) {
+  return new Promise((resolve, reject) => {
+    // Use jQuery to select the table cell at the specified index
+    const col = $(".Table" + DataTableID + " td:nth-child(" + colIndex + ")");
+    // Check if the table element exists and has content
+    if (col) {
+      if (col.length > 0) {
+        // The replace regex was in the original, but probably not needed here?
+        const colData = col[0].innerHTML
+          .replace(/(?:\r\n|\r|\n)/g, "")
+          .replace(/\t/g, "")
+          .replaceAll(/[ ]{2,}/g, " ");
+        if (colData.length > 0) {
+          try {
+            resolve(JSON.parse(colData));
+          } catch (error) {
+            reject(
+              new Error(
+                `Failed to parse JSON from column data: ${error.message}`
+              )
+            );
+          }
+        } else {
+          reject(
+            new Error(
+              `Column data for Table${DataTableID}, index ${colIndex} is empty`
+            )
+          );
+        }
+      } else {
+        reject(
+          new Error(
+            `Unable to locate DOM element Table${DataTableID}; check ID`
+          )
+        );
+      }
+    }
+  });
+}
+
 /* -----------------------------------------------------------------
     Function to load JSON data from the specified path in the passed
     table object. Columns/headers are dynamically generated.
