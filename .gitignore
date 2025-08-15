@@ -7,3 +7,4 @@ oldcode.txt
 package-lock.json
 srd.js
 *.yaml
+*test*
