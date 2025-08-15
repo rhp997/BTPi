@@ -3,17 +3,22 @@ const epicorBlue = "rgb(49,144,214)";
 // Epicor light gray
 const epicorLightGray = "rgb(239,243,239)";
 
-// Define a set of colors to use for the pie chart. If there are more data points than colors, the last color will be used for "Other"
+// Define a set of colors to use for the pie chart.
 const COLORS = [
-  "#4dc9f6",
-  "#f67019",
-  "#f53794",
-  "#537bc4",
-  "#acc236",
-  "#166a8f",
-  "#00a950",
-  "#58595b",
-  "#8549ba",
+  "rgba(77, 201, 246, 1)",
+  "rgba(246, 112, 25, 1)",
+  "rgba(176, 190, 197, 1)",
+  "rgba(245, 55, 148, 1)",
+  "rgba(83, 123, 196, 1)",
+  "rgba(172, 194, 54, 1)",
+  "rgba(22, 106, 143, 1)",
+  "rgba(249, 212, 35, 1)",
+  "rgba(88, 89, 91, 1)",
+  "rgba(252, 145, 58, 1)",
+  "rgba(226, 226, 226, 1)",
+  "rgba(4, 6, 5, 1)",
+  "rgba(133, 73, 186, 1)",
+  "rgba(144, 164, 174, 1)",
 ];
 
 /* ----------------------------
@@ -86,7 +91,7 @@ function createQVDonut(data) {
     data,
     options: {
       // Set to false to use the canvas element's size
-      responsive: false,
+      responsive: true,
       rotation: 180,
       hoverOffset: 20,
       // Size of the donut hole
@@ -114,8 +119,9 @@ function createQVDonut(data) {
 }
 
 // Function to get a color for each slice of the pie chart
-function getSliceColor(index) {
-  return COLORS[index % COLORS.length];
+function getSliceColor(index, alpha = 1) {
+  const color = COLORS[index % COLORS.length];
+  return color.replace(/[^,]+(?=\))/, alpha);
 }
 
 // Function to return a color based on the percentage completed
@@ -142,5 +148,89 @@ function getChartConfig(id, title, label2, data) {
         borderWidth: 0,
       },
     ],
+  };
+}
+/*
+ * Function to create a pie chart configuration object
+ * @param {Object} dataObject - An object with keys as labels and values as data points
+ * @param {string} id - The ID of the canvas element where the chart will be rendered
+ * @param {string} sliceLabel - The label for the pie slices
+ * @param {string} chartTitle - The title of the chart
+ * @returns {Object} - A configuration object for a pie chart
+ * This function sorts the data object by value, limits the number of slices to a maximum defined by COLORS,
+ * and groups any excess data into an "Other" slice.
+ * It returns a configuration object that can be used with Chart.js to render a pie chart.
+ */
+function getPieChartConfig(
+  dataObject,
+  id,
+  sliceLabel,
+  chartTitle,
+  maxColors = COLORS.length - 1
+) {
+  // Sort the object by value for a more appealing display
+  const sortedObj = Object.fromEntries(
+    Object.entries(dataObject).sort(([, a], [, b]) => b - a)
+  );
+  const labels = Object.keys(sortedObj);
+  const values = Object.values(sortedObj);
+  const sliceColors = [];
+  // If we have more data than colors, group the last items as "Other"
+  const lblOther = "Other";
+  // Array of colors defined in chart-utils.js
+  //const maxColors = COLORS.length - 1;
+  //console.log("Max colors:", maxColors, ", Values.length:", values.length);
+
+  let displayLabels = labels.slice();
+  let displayValues = values.slice();
+
+  if (displayValues.length > maxColors) {
+    const otherValue = displayValues
+      .slice(maxColors)
+      .reduce((a, b) => a + b, 0);
+    displayValues = displayValues.slice(0, maxColors);
+    displayLabels = displayLabels.slice(0, maxColors);
+    displayValues.push(otherValue);
+    displayLabels.push(lblOther);
+  }
+
+  for (let i = 0; i < displayValues.length; i++) {
+    sliceColors.push(getSliceColor(i < maxColors ? i : maxColors));
+  }
+
+  return {
+    id: id,
+    type: "pie",
+    data: {
+      labels: displayLabels,
+      datasets: [
+        {
+          label: sliceLabel,
+          data: displayValues,
+          backgroundColor: sliceColors,
+          borderWidth: 1,
+        },
+      ],
+    },
+    options: {
+      hoverOffset: 20,
+      plugins: {
+        legend: {
+          display: true,
+        },
+        datalabels: {
+          color: "white",
+          align: "end",
+        },
+        title: {
+          display: true,
+          text: chartTitle,
+          color: "black",
+          position: "bottom",
+          align: "center",
+          font: { weight: "bold" },
+        },
+      },
+    },
   };
 }
