@@ -230,11 +230,14 @@ async function runQueries(queries, timeout = 5000) {
           const queryResults = (await sql.query(queries[i].SQL)).recordsets[0];
           const jsonData = JSON.stringify(queryResults, null, 2);
           const filePath = queries[i].File;
-          //const filePath = path.join(__dirname, `public/data/query${i}.json`);
-          await fs.promises.writeFile(filePath, jsonData, "utf8");
-          logger.info(
-            `Query results written to ${filePath} with last-modified date ${curDT}`
-          );
+          // If the query doesn't create a file (e.g. a maintenance SPROC), allow the File property to be empty
+          if (filePath && filePath.length > 0) {
+            //const filePath = path.join(__dirname, `public/data/query${i}.json`);
+            await fs.promises.writeFile(filePath, jsonData, "utf8");
+            logger.info(
+              `Query results written to ${filePath} with last-modified date ${curDT}`
+            );
+          }
           queries[i].LastModified = curDT;
           queries[i].Error = "";
           // Create a sanitized file (no SQL) for use by the client
