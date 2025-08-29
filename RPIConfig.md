@@ -91,7 +91,7 @@ Download the required modules inside the /srv/BTPi directory:
 ```sh
 cd /srv/BTPi
 npm init -y
-npm install express mssql winston winston-daily-rotate-file winston moment-timezone node-schedule cors axios xml2js nconf
+npm install express mssql winston winston-daily-rotate-file winston moment-timezone node-schedule cors axios xml2js nconf ejs
 ```
 
 _Optional:_ Install pm2 (globally) to manage the process:
