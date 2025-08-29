@@ -237,16 +237,16 @@ async function runQueries(queries, timeout = 5000) {
             logger.info(
               `Query results written to ${filePath} with last-modified date ${curDT}`
             );
+            // Create a sanitized file (no SQL) for use by the client
+            let obj = {
+              Name: queries[i].Name,
+              Title: queries[i].Title,
+              File: queries[i].File.replace("public/", ""),
+            };
+            queryList.push(obj);
           }
           queries[i].LastModified = curDT;
           queries[i].Error = "";
-          // Create a sanitized file (no SQL) for use by the client
-          let obj = {
-            Name: queries[i].Name,
-            Title: queries[i].Title,
-            File: queries[i].File.replace("public/", ""),
-          };
-          queryList.push(obj);
         }
       }
       if (queryList.length >= 1) {
