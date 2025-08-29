@@ -456,11 +456,20 @@ app.get("/proxy-json", async (req, res) => {
   await getDataByProxy(req, res, apiRepsonseType.JSON);
 });
 
+// 404 Not Found middleware - This must be the last middleware in the stack
+app.use((req, res, next) => {
+  // Send the URL and a message to the 404 handler
+  res.status(404).render("404.ejs", {
+    url: req.originalUrl,
+    message: "The page you are looking for does not exist.",
+  });
+});
+
 /* ======================================================================
   Begin listening on the specified port and initialize the queries
   ======================================================================*/
 app.listen(port, () => {
-  logger.info(`Server started on port ${port}`);
+  logger.info(`Server listening at http://localhost:${port}`);
   // Create an initial set of files on startup so the application has something to work with
   const numEnabled = queries.filter((obj) => obj.Enabled === true).length;
   logger.info(`Initializing ${numEnabled} query(s) on startup`);
