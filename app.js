@@ -25,6 +25,10 @@ const apiRepsonseType = Object.freeze({
   JSON: "json",
 });
 
+const defDBTimeout = 5000;
+// Set to a non-zero number to prettify returned JSON
+const defJSONSpaces = 0;
+
 // Winston handles logging; moment-timezone formats timestamps; winston-daily-rotate-file rotates logs daily
 const winston = require("winston");
 const moment = require("moment-timezone");
@@ -206,7 +210,7 @@ async function checkConnection(
   @returns {Promise<boolean>} - A promise that resolves to true if all
   queries are successful, or false if any query fails
  ----------------------------------------------------------------- */
-async function runQueries(queries, timeout = 5000) {
+async function runQueries(queries, timeout = defDBTimeout, addToList = true) {
   if (queries.length < 1) {
     logger.warn("No queries to run. Please check the configuration.");
     return false;
@@ -227,29 +231,62 @@ async function runQueries(queries, timeout = 5000) {
       for (let i = 0; i < queries.length; i++) {
         if (queries[i].Enabled) {
           logger.info(`Executing query ${queries[i].Name}`);
-          const queryResults = (await sql.query(queries[i].SQL)).recordsets[0];
-          const jsonData = JSON.stringify(queryResults, null, 2);
-          const filePath = queries[i].File;
-          // If the query doesn't create a file (e.g. a maintenance SPROC), allow the File property to be empty
-          if (filePath && filePath.length > 0) {
-            //const filePath = path.join(__dirname, `public/data/query${i}.json`);
-            await fs.promises.writeFile(filePath, jsonData, "utf8");
-            logger.info(
-              `Query results written to ${filePath} with last-modified date ${curDT}`
-            );
-            // Create a sanitized file (no SQL) for use by the client
-            let obj = {
-              Name: queries[i].Name,
-              Title: queries[i].Title,
-              File: queries[i].File.replace("public/", ""),
-            };
-            queryList.push(obj);
+          const rs = await sql.query(queries[i].SQL);
+          if (rs && rs.recordsets.length > 0 && rs.recordsets[0].length > 0) {
+            const queryResults = rs.recordsets[0][0];
+            // Account for SQL that returns a JSON value as a string (e.g., FOR JSON AUTO)
+            let jsonStr;
+            // Check the first property of the returned result; if the property value is a string and the string starts with an array opening bracket, treat differently
+            const firstProp = Object.keys(queryResults)[0];
+            if (
+              typeof queryResults[firstProp] === "string" &&
+              queryResults[firstProp][0] === "["
+            ) {
+              // In case the property value is a wonky feller, wrap the parse() in a try
+              try {
+                // Hope the value of the first property is a valid JSON array; parse and stringify
+                jsonStr = JSON.stringify(
+                  JSON.parse(queryResults[firstProp]),
+                  null,
+                  defJSONSpaces
+                );
+              } catch (error) {
+                logger.error(
+                  `Invalid JSON data for ${firstProp} (${queryResults[firstProp]}): ${error}`
+                );
+              }
+            } else {
+              // Otherwise, stringify the query results
+              jsonStr = JSON.stringify(queryResults, null, defJSONSpaces);
+            }
+
+            // Attempt to create the JSON file with the query results
+            const filePath = queries[i].File;
+            // If the query doesn't create a file (e.g. a maintenance SPROC), allow the File property to be empty
+            if (filePath && filePath.length > 0) {
+              //const filePath = path.join(__dirname, `public/data/query${i}.json`);
+              await fs.promises.writeFile(filePath, jsonStr, "utf8");
+              logger.info(
+                `Query results written to ${filePath} with last-modified date ${curDT}`
+              );
+              // Create a sanitized list of successfully completed query names, titles, and their paths; for use by client
+              let obj = {
+                Name: queries[i].Name,
+                Title: queries[i].Title,
+                File: queries[i].File.replace("public/", ""),
+              };
+              queryList.push(obj);
+            }
+            queries[i].LastModified = curDT;
+            queries[i].Error = "";
+          } else {
+            logger.warn(`Query ${queries[i].Name} returned no results.`);
           }
-          queries[i].LastModified = curDT;
-          queries[i].Error = "";
+        } else {
+          logger.info(`Query ${queries[i].Name} is not enabled; skipping.`);
         }
       }
-      if (queryList.length >= 1) {
+      if (queryList.length >= 1 && addToList) {
         // Write the query list to a JSON file. Sanitized list of queries that successfully ran and their file paths
         const queryListPath = path.join(
           __dirname,
@@ -259,12 +296,10 @@ async function runQueries(queries, timeout = 5000) {
         );
         await fs.promises.writeFile(
           queryListPath,
-          JSON.stringify(queryList, null, 2),
+          JSON.stringify(queryList, null, defJSONSpaces),
           "utf8"
         );
         logger.info(`Query list written to ${queryListPath}`);
-      } else {
-        logger.warn("No enabled queries found to run. Nothing to do.");
       }
     } catch (err) {
       logger.error("runQueries:", err);
@@ -334,69 +369,46 @@ app.post("/data", (req, res) => {
   dataType: "json",
   contentType: "application/json; charset=utf-8",
   method: "GET"
+
+  Returns JSON
   ======================================================================*/
 app.get("/data", (req, res) => {
   // Allow the client to request a specific query by name. Allow the "Name" parameter to be case insensitive.
   // Note: The query name must exactly match (case sensitive) the "Name" property in the queries array.
   let queryName = req.query.name || req.query.Name;
+  logger.info(`Received request for query: ${queryName}`);
   if (queryName) {
     // Check if the query name exists in the queries array
     const queryObj = queries.find((obj) => obj.Name === queryName);
-    if (queryObj && queryObj.Enabled) {
-      checkConnection(nconf.get("database:connectionTimeout"), 3000, 4)
+    if (queryObj) {
+      const q = [queryObj];
+      runQueries(q, defDBTimeout, false)
         .then(() => {
-          // Connection is good, proceed with query execution
-          sql
-            .connect(nconf.get("database"))
-            .then(() => {
-              // Execute the query
-              sql
-                .query(queryObj.SQL)
-                .then((queryResults) => {
-                  // Return the results as JSON
-                  res.json(queryResults.recordsets[0]);
-                })
-                .catch(() => {
-                  // Query execution failed
-                  logger.error(`Query execution failed for "${queryName}."`);
-                  logger.error(`SQL Error: ${error.message}`);
-                  res
-                    .status(500)
-                    .send(
-                      `Query execution failed for "${queryName}." See log for details`
-                    );
-                })
-                .finally(() => {
-                  sql.close();
-                });
+          // If query ran, set the last modified header and send the file that was created
+          const lMod = q[0] ? q[0].LastModified : new Date().toUTCString();
+          res
+            .header({
+              "Last-Modified": lMod,
+              "Content-Type": "application/json",
             })
-            .catch(() => {
-              // Connection failed
-              logger.error(`Database connection failed for "${queryName}."`);
-              logger.error(`DB Conn Error: ${error.message}`);
-              res
-                .status(500)
-                .send(
-                  `Database connection failed for "${queryName}." See log for details`
-                );
-            });
+            .sendFile(path.join(__dirname, q[0].File));
         })
-        .catch(() => {
-          // Connectivity check failed
-          logger.error(`No internet or database connection"`);
+        .catch((err) => {
+          logger.error(err);
           res
             .status(500)
-            .send(
-              `No internet or database connection failed for "${queryName}." See log for details`
+            .json(
+              `Internal server error in the ${req.path} route: ${err.message}`
             );
         });
     } else {
-      // If the query name is not found or not enabled, return a 404 error
-      logger.warn(`Query "${queryName}" not found or not enabled`);
-      res.status(404).send(`Query "${queryName}" not found or not enabled`);
+      logger.warn(`Query "${queryName}" not found`);
+      res.status(500).json({
+        message: `Query '${queryName}' not found`,
+      });
     }
   } else {
-    res.status(200).send({
+    res.status(500).send({
       message:
         "No query name specified. Please provide a query name using the Name parameter.",
     });
