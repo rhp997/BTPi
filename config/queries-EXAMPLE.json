@@ -16,6 +16,13 @@
       "Enabled": true
     },
     {
+      "Name": "TasksB",
+      "Title": "Cycle Counts and Put Aways",
+      "SQL": "DECLARE @tasksbJSON VARCHAR(MAX); EXEC [1790WMSEPQuery] 52, NULL, 1, NULL, @tasksbJSON OUTPUT; SELECT @tasksbJSON [tasksb];",
+      "File": "public/data/tasksb.json",
+      "Enabled": false
+    },
+    {
       "Name": "Heartbeat",
       "Title": "Data refreshed on ",
       "SQL": "SELECT CONVERT(VARCHAR, GETDATE(), 22) [DateTimeLastRun]",

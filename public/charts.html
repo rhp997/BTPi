@@ -6,7 +6,7 @@
     <!-- Uncomment to simply refresh without a redirect. Time is entered in seconds -->
     <!-- meta http-equiv="refresh" content="300" -->
     <!-- Redirect back to index.html in daisy-chain fashion -->
-    <meta http-equiv="refresh" content="300;url=/index.html" -- />
+    <meta http-equiv="refresh" content="300;url=/index.html" />
     <title>Charts</title>
     <script
       src="https://code.jquery.com/jquery-3.7.1.min.js"
@@ -22,7 +22,7 @@
   </head>
 
   <body>
-    <div class="container px-5">
+    <div class="container-fluid px-5">
       <h3 class="pt-5 pb-4">Cycle Counts & Put Aways</h3>
       <div class="row mt-1">
         <div class="">
@@ -36,7 +36,7 @@
             <canvas id="cyc_acc_cur"></canvas>
           </div>
           <div class="border p-2">
-            <canvas id="pa_by_loc"></canvas>
+            <canvas id="pa_complete"></canvas>
           </div>
         </div>
         <div class="">
@@ -45,6 +45,7 @@
         <div class="d-flex align-items-start flex-row" id="cycCurrent">
           <div class="border p-2"><canvas id="cyc_compl_sel"></canvas></div>
           <div class="border p-2"><canvas id="cyc_acc_sel"></canvas></div>
+          <div class="border p-2"><canvas id="pa_by_loc"></canvas></div>
         </div>
         <div class="align-items-start flex-row w-25" id="cycDropdown">
           <div class="p-2">
@@ -66,12 +67,15 @@
           All charts are derived from two pulse queries (see config/pulse_board_queries-EXAMPLE.sql):
             1. db_cycle_ct_summary
             2. db_pa_by_loc
+            ...and a call to the TasksB Endpoint
 
             Two of the charts are bound to a dropdown with week selections and can be filtered interactively
             This page can be linked directly in a Dashboard using the URL option
         */
 
         /* ------------------------ CYCLE COUNTS ------------------------- */
+        // Note this was already written before discovering the TasksB endpoint...which would
+        // have been significantly easier to implement, but without the historical data
         fetch("/proxy-json?api=/Pulse/Query/runQuery&id=db_cycle_ct_summary", {
           method: "GET",
           headers: { "Content-Type": "application/json; charset=utf-8" },
@@ -154,7 +158,7 @@
               createQVDonut(
                 getChartConfig(
                   "cyc_compl_cur",
-                  "Current Week Completed",
+                  "Cycle Counts Completed",
                   "Completed",
                   [
                     cycData[lastWeek][dataIndices.complete],
@@ -165,7 +169,7 @@
               createQVDonut(
                 getChartConfig(
                   "cyc_acc_cur",
-                  "Current Week Accuracy",
+                  "Cycle Counts Accuracy",
                   "Accurate",
                   [
                     cycData[lastWeek][dataIndices.accurate],
@@ -178,7 +182,7 @@
               createQVDonut(
                 getChartConfig(
                   "cyc_compl_sel",
-                  lblAllWeeks + " Completed",
+                  lblAllWeeks + " CC Completed",
                   "Completed",
                   [
                     cycData[lblAllWeeks][dataIndices.complete],
@@ -189,7 +193,7 @@
               createQVDonut(
                 getChartConfig(
                   "cyc_acc_sel",
-                  lblAllWeeks + " Accuracy",
+                  lblAllWeeks + " CC Accuracy",
                   "Accurate",
                   [
                     cycData[lblAllWeeks][dataIndices.accurate],
@@ -294,7 +298,32 @@
             console.error(msg);
           });
 
-        /* ------------------------ PUT AWAYS ------------------------- */
+        /* ------------------------ COMPLETED PUT AWAYS ------------------------- */
+        // Put Aways using the newly discovered TasksB endpoint; requires the TasksB
+        // Query be enabled in config/queries.json
+        const tasksB = "data/tasksb.json";
+        $.getJSON(tasksB, function (data) {
+          // Find the object with the "Put Aways" task
+          const paObj = data.find(
+            (obj) => obj.hasOwnProperty("Task") && obj["Task"] === "Put Aways"
+          );
+          if (paObj) {
+            createQVDonut(
+              getChartConfig("pa_complete", "Put Aways Complete", "Completed", [
+                paObj.Completed,
+                paObj.TO_DO,
+              ])
+            );
+          } else {
+            console.error("Put Aways not found on the TasksB object");
+          }
+        }).fail(function (xhr, textstatus, error) {
+          console.error(
+            `Error loading JSON file ${tasksB}: ${textstatus}, ${error}`
+          );
+        });
+
+        /* ------------------------ PUT AWAYS BY LOCATION ------------------------- */
         fetch("/proxy-json?api=/Pulse/Query/runQuery&id=db_pa_by_loc", {
           method: "GET",
           headers: { "Content-Type": "application/json; charset=utf-8" },
@@ -327,66 +356,26 @@
               });
               // Sort by count descending to make a more visually appealing chart
               paData.sort((a, b) => b.cnt - a.cnt);
-              // Create an array of arrays for chart data
-              // The first element is the location, the second is the count, and the third is the color
-              let chartInfo = [];
-              // If we have more data than colors, group the last items as "Other"
-              const lblOther = "Other";
-              const maxColors = COLORS.length - 1;
+
+              const pas = {};
               let ttlPAs = 0;
+              // Use the location as the key (series names) and the count as the value
               paData.forEach((item, index) => {
-                if (index < maxColors) {
-                  chartInfo.push([item.loc, item.cnt, getSliceColor(index)]);
-                } else {
-                  // If we have more data than colors, combine the counts for the remaining items
-                  !chartInfo[maxColors]
-                    ? chartInfo.push([
-                        lblOther,
-                        parseInt(item.cnt),
-                        getColor(maxColors),
-                      ])
-                    : (chartInfo[maxColors][1] += parseInt(item.cnt));
-                }
+                pas[item.loc] = item.cnt;
                 ttlPAs += parseInt(item.cnt);
               });
 
-              const config = {
-                type: "pie",
-                data: {
-                  labels: chartInfo.map((item) => item[0]),
-                  datasets: [
-                    {
-                      label: "Put aways at location",
-                      data: chartInfo.map((item) => item[1]),
-                      backgroundColor: chartInfo.map((item) => item[2]),
-                      borderWidth: 1,
-                    },
-                  ],
-                },
-                options: {
-                  hoverOffset: 20,
-                  plugins: {
-                    legend: {
-                      display: true,
-                    },
-                    datalabels: {
-                      color: "white",
-                      align: "end",
-                    },
-                    title: {
-                      display: true,
-                      text: `${ttlPAs} total Put Aways`,
-                      color: "black",
-                      position: "bottom",
-                      align: "center",
-                      font: { weight: "bold" },
-                    },
-                  },
-                },
-              };
-
-              const ctx = document.getElementById("pa_by_loc").getContext("2d");
-              new Chart(ctx, config);
+              const paConfig = getPieChartConfig(
+                pas,
+                "pa_by_loc",
+                "Put aways at location",
+                ttlPAs + " Put aways",
+                3
+              );
+              const custCtx = document
+                .getElementById(paConfig.id)
+                .getContext("2d");
+              new Chart(custCtx, paConfig);
             } else {
               console.warn("No data found");
             }
