@@ -276,16 +276,18 @@ The configurable parameters consist of three JSON objects:
 
    At a minimum, specify the BisTrack database host, instance, and user credentials. Additional connection options (pooling, encryption, timeouts, etc.) are also available.
 
-2. **btpi** - Port and schedule interval for the btpi server
+2. **btpi** - App-level configuration parameters
 
    ```
    "btpi": {
        "port": 3000,
-       "interval": "*/30 8-17 * * 1-5"
+       "interval": "*/30 8-17 * * 1-5",
+        "connectionTimeout": 5000,
+        "JSONSpaces": 0
    }
    ```
 
-   BTPi will listen on the configured port and run on the scheduled interval which utilizes crontab format (see also https://crontab.guru/).
+   BTPi will listen on the configured port and run on the scheduled interval which utilizes crontab format (see also https://crontab.guru/). The connectionTimeout parameter controls how long the app will wait before aborting a check connectivity test. The JSONSpaces parameter defines how the JSON will be returned; set to 0 to minify output.
 
 3. **wms_proxy** - Endpoint URLs when using the proxy routes
 
@@ -296,7 +298,7 @@ The configurable parameters consist of three JSON objects:
    }
    ```
 
-   The WMS Pulse Board and QlikView endpoints (XML) can be configured here to avoid their inclusion in client side code.
+   The WMS Pulse Board and QlikView endpoints (XML) can be configured here to avoid their inclusion in client side code. If these parameters have been set, a relative path may be utilized in client-side fetches.
 
 _Note:_ If the btpi.port setting is changed from the default (3000), it will also need to be updated <a href="RPIConfig.md#elsewhere">in the RPi startup file</a>.
 
