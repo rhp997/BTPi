@@ -17,7 +17,11 @@
     "btpi": {
         "port": 3000,
         "_comment_interval": "Cron format for scheduling the BTPi queries. This example runs every 30 minutes from 8 AM to 5 PM, Monday to Friday. See also https://crontab.guru/ for help with cron syntax",
-        "interval": "*/30 8-17 * * 1-5"
+        "interval": "*/30 8-17 * * 1-5",
+        "_comment_connectionTimeout": "Maximum time (in milliseconds) that the app will wait for a connection to be established.",
+        "connectionTimeout": 5000,
+        "_comment_JSONSpaces": "Number of spaces to use for JSON pretty-printing in log files. Set to 0 (default) to minify",
+        "JSONSpaces": 0
     },
     "wms_proxy": {
         "_comment_info": "Host values should include protocol (e.g., http|s:) and port (e.g., :8702) as needed",
