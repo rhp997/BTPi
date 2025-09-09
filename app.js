@@ -246,8 +246,8 @@ async function runQueries(
           logger.info(`Executing query ${queries[i].Name}`);
           const rs = await sql.query(queries[i].SQL);
           if (rs && rs.recordsets.length > 0 && rs.recordsets[0].length > 0) {
+            // Get the first record of the first recordset to check for SQL that returns a JSON array as a string (e.g., FOR JSON AUTO)
             const queryResults = rs.recordsets[0][0];
-            // Account for SQL that returns a JSON value as a string (e.g., FOR JSON AUTO)
             let jsonStr;
             // Check the first property of the returned result; if the property value is a string and the string starts with an array opening bracket, treat differently
             const firstProp = Object.keys(queryResults)[0];
@@ -255,7 +255,7 @@ async function runQueries(
               typeof queryResults[firstProp] === "string" &&
               queryResults[firstProp][0] === "["
             ) {
-              // In case the property value is a wonky feller, wrap the parse() in a try
+              // In case the property value is a wonky fella, wrap the parse() in a try
               try {
                 // Hope the value of the first property is a valid JSON array; parse and stringify
                 jsonStr = JSON.stringify(
@@ -269,9 +269,9 @@ async function runQueries(
                 );
               }
             } else {
-              // Otherwise, stringify the query results
+              // Otherwise, stringify the recordset as an array of objects and save to a variable
               jsonStr = JSON.stringify(
-                queryResults,
+                rs.recordsets[0],
                 null,
                 config.btpi.JSONSpaces
               );
