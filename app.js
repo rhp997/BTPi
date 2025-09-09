@@ -25,14 +25,18 @@ const apiRepsonseType = Object.freeze({
   JSON: "json",
 });
 
-const defDBTimeout = 5000;
-// Set to a non-zero number to prettify returned JSON
-const defJSONSpaces = 0;
+// Defaults
+const defDBTimeout = 5000; // Database connection timeout in milliseconds
+const defInternetTimeout = 5000; // Check internet connectivity timeout in milliseconds
+const defPort = 3000; // Port to listen on
+const defInterval = "*/30 8-17 * * 1-5"; // Every 30 minutes between 8 AM and 5 PM, Monday through Friday
+const defJSONSpaces = 0; // Set to a non-zero number to prettify returned JSON
 
-// Winston handles logging; moment-timezone formats timestamps; winston-daily-rotate-file rotates logs daily
+// Winston handles logging; moment-timezone formats timestamps; +winston-daily-rotate-file rotates logs daily
 const winston = require("winston");
 const moment = require("moment-timezone");
 require("winston-daily-rotate-file");
+
 // Node-schedule is used to run the queries on a schedule
 const schedule = require("node-schedule");
 const { error } = require("console");
@@ -91,9 +95,10 @@ nconf
   .file("queries", { file: path.join(__dirname, "config", "queries.json") })
   .defaults({
     btpi: {
-      // Default port
-      port: 3000,
-      interval: "*/30 8-17 * * 1-5",
+      port: defPort,
+      interval: defInterval,
+      connectionTimeout: defInternetTimeout,
+      JSONSpaces: defJSONSpaces,
     },
     // Add defaults for the required components; this allows container builds to succeed
     // even though the defaults won't work in production
@@ -102,7 +107,7 @@ nconf
       server: "dbserver",
       password: "dbpass",
       database: "db",
-      connectionTimeout: 5000,
+      connectionTimeout: defDBTimeout,
       options: {
         encrypt: false,
       },
@@ -118,23 +123,27 @@ nconf
     "database:database",
     "queries",
   ]);
-// Think globally, act within local variable scope ... doh
-const queries = nconf.get("queries");
-const port = nconf.get("btpi:port");
-const intvl = nconf.get("btpi:interval");
-const pulse = nconf.get("wms_proxy:host_pulse");
-const xmlep = nconf.get("wms_proxy:host_xmlep");
+
+// Create a local config object for easy reference
+const config = {
+  btpi: nconf.get("btpi"),
+  database: nconf.get("database"),
+  wms_proxy: nconf.get("wms_proxy"),
+  queries: nconf.get("queries"),
+};
 
 // Publish the public folder
 app.use(express.static(path.join(__dirname, "public")));
+// Set JSON spacing
+app.set("json spaces", config.btpi.JSONSpaces);
 
 // TODO: Use main config file as default, but allow individual overrides for each query
-logger.info(`Creating schedule with frequency ${intvl}`);
+logger.info(`Creating schedule with frequency ${config.btpi.interval}`);
 // Load the configuration's frequencey (crontab format) and run all queries on that schedule
-const job = schedule.scheduleJob(intvl, function () {
+const job = schedule.scheduleJob(config.btpi.interval, function () {
   logger.info("Running scheduled job");
   // Keep the data fresh by automatically running the queries
-  runQueries(queries);
+  runQueries(config.queries);
 });
 
 /* -----------------------------------------------------------------
@@ -156,7 +165,7 @@ function sleep(sleepyTime) {
     @returns {Promise<boolean>} - A promise that resolves to true if connectivity is established or false otherwise
  ----------------------------------------------------------------- */
 async function checkConnection(
-  connectTimeout = 5000,
+  connectTimeout = config.btpi.connectionTimeout,
   sleepyTime = 3000,
   retryAttempts = 1
 ) {
@@ -176,7 +185,7 @@ async function checkConnection(
   for (let i = 0; i <= retryAttempts; i++) {
     // Fetch a site using the passed connection timeout
     connected = await fetch(sites[i], {
-      method: "FET",
+      method: "GET",
       cache: "no-cache",
       headers: { "Content-Type": "application/json" },
       referrerPolicy: "no-referrer",
@@ -210,13 +219,17 @@ async function checkConnection(
   @returns {Promise<boolean>} - A promise that resolves to true if all
   queries are successful, or false if any query fails
  ----------------------------------------------------------------- */
-async function runQueries(queries, timeout = defDBTimeout, addToList = true) {
+async function runQueries(
+  queries,
+  timeout = config.database.connectionTimeout,
+  addToList = true
+) {
   if (queries.length < 1) {
     logger.warn("No queries to run. Please check the configuration.");
     return false;
   }
   // Check if connected to the internet; sleep 3 s between attempts, retry up to 4 different times (5 attempts total)
-  if (await checkConnection(timeout, 3000, 4)) {
+  if (await checkConnection(timeout, config.btpi.connectionTimeout, 4)) {
     let retVal = true;
     const queryList = [];
     try {
@@ -248,7 +261,7 @@ async function runQueries(queries, timeout = defDBTimeout, addToList = true) {
                 jsonStr = JSON.stringify(
                   JSON.parse(queryResults[firstProp]),
                   null,
-                  defJSONSpaces
+                  config.btpi.JSONSpaces
                 );
               } catch (error) {
                 logger.error(
@@ -257,7 +270,11 @@ async function runQueries(queries, timeout = defDBTimeout, addToList = true) {
               }
             } else {
               // Otherwise, stringify the query results
-              jsonStr = JSON.stringify(queryResults, null, defJSONSpaces);
+              jsonStr = JSON.stringify(
+                queryResults,
+                null,
+                config.btpi.JSONSpaces
+              );
             }
 
             // Attempt to create the JSON file with the query results
@@ -379,10 +396,10 @@ app.get("/data", (req, res) => {
   logger.info(`Received request for query: ${queryName}`);
   if (queryName) {
     // Check if the query name exists in the queries array
-    const queryObj = queries.find((obj) => obj.Name === queryName);
+    const queryObj = config.queries.find((obj) => obj.Name === queryName);
     if (queryObj) {
       const q = [queryObj];
-      runQueries(q, defDBTimeout, false)
+      runQueries(q, config.database.connectionTimeout, false)
         .then(() => {
           // If query ran, set the last modified header and send the file that was created
           const lMod = q[0] ? q[0].LastModified : new Date().toUTCString();
@@ -480,12 +497,14 @@ app.use((req, res, next) => {
 /* ======================================================================
   Begin listening on the specified port and initialize the queries
   ======================================================================*/
-app.listen(port, () => {
-  logger.info(`Server listening at http://localhost:${port}`);
+app.listen(config.btpi.port, () => {
+  logger.info(`Server listening at http://localhost:${config.btpi.port}`);
   // Create an initial set of files on startup so the application has something to work with
-  const numEnabled = queries.filter((obj) => obj.Enabled === true).length;
+  const numEnabled = config.queries.filter(
+    (obj) => obj.Enabled === true
+  ).length;
   logger.info(`Initializing ${numEnabled} query(s) on startup`);
-  runQueries(queries);
+  runQueries(config.queries);
 });
 
 /* ======================================================================
@@ -499,6 +518,10 @@ app.listen(port, () => {
       @param {Object} req - The request object
       @param {Object} res - The response object
       @param {string} [responseType=apiRepsonseType] - The type of response expected (XML or JSON)
+
+  Examples:
+  http://localhost:3000/proxy-json?api=/Pulse/Query/runQuery&id=db_old_units
+  http://localhost:3000/proxy-xml?api=/Dashboard/meter/TasksB
   ======================================================================*/
 async function getDataByProxy(req, res, responseType) {
   try {
@@ -534,7 +557,6 @@ async function getDataByProxy(req, res, responseType) {
       if (url.origin !== "null") {
         logger.info(`${responseType} proxy fetching api ${url.href}`);
         // CORS magic happens here; axios is not subject to single-domain policy and acts as a proxy
-        //const response = await axios.get(url.href);
         const response = await axios.get(url.href, {
           headers: {
             // Set to avoid the "Not an ajax request" error in some APIs (like BisTrack WMS Pulse which uses Telerik/Kendo UI)
@@ -585,14 +607,14 @@ async function getAbsolutePath(urlToCheck, responseType) {
     );
     // Assume XML responseTypes should be the xmlep value, JSON response types should be the pulse value
     if (responseType === apiRepsonseType.XML) {
-      xmlep
-        ? (url = `${xmlep}${url}`)
+      config.wms_proxy.host_xmlep
+        ? (url = `${config.wms_proxy.host_xmlep}${url}`)
         : logger.warn(
             `No WMS XML endpoint configured (wms_proxy.host_xmlep); unable to prefix relative path`
           );
     } else if (responseType === apiRepsonseType.JSON) {
-      pulse
-        ? (url = `${pulse}${url}`)
+      config.wms_proxy.host_pulse
+        ? (url = `${config.wms_proxy.host_pulse}${url}`)
         : logger.warn(
             `No WMS Pulse endpoint configured (wms_proxy.host_pulse); unable to prefix relative path`
           );
