@@ -5,18 +5,18 @@
 
 ### Docker
 ## Build
-# docker build -f Dockerfile -t btpi:1.1.3 .
+# docker build -f Dockerfile -t btpi:1.2.3 .
 ## Attach to an image
-# docker run -it --entrypoint /bin/bash btpi:1.1.3
+# docker run -it --entrypoint /bin/bash btpi:1.2.3
 ## Start the container in detached mode
-# docker run -it -d -p 3000:3000 --name BTPi btpi:1.1.3
+# docker run -it -d -p 3000:3000 --name BTPi btpi:1.2.3
 # Attach
 ## docker exec -it BTPi /bin/bash
 
 FROM node:24-bookworm-slim
 
 # Match package.json version
-LABEL version="1.1.3"
+LABEL version="1.2.3"
 
 ### Install a few necessary apps
 RUN apt-get update && apt-get install -y nano less procps tzdata libterm-readline-gnu-perl ca-certificates
@@ -48,7 +48,7 @@ WORKDIR /srv/BTPi
 COPY package*.json ./
 
 # Install app dependencies
-RUN npm install express mssql winston winston-daily-rotate-file winston moment-timezone node-schedule cors axios xml2js nconf
+RUN npm install express mssql winston winston-daily-rotate-file winston moment-timezone node-schedule cors axios xml2js nconf ejs
 
 # Copy the rest of the application code (may require specifying --file-ignore=.dockerfile in the gcloud command)
 COPY . .
