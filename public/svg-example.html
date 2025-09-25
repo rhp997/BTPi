@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lumber Yard Map</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+    <style>
+        .container {
+            max-width: 100%;
+            padding: 20px;
+        }
+
+        svg {
+            border: 1px solid #ddd;
+            background-color: #f8f9fa;
+        }
+
+        text {
+            font-family: Arial, sans-serif;
+            /*fill: #333;*/
+        }
+
+        .building {
+            fill: aqua;
+        }
+
+        .building:hover {
+            fill: #DA4567;
+            /* Changes the fill color */
+            cursor: pointer;
+            /* Changes cursor to a pointer */
+        }
+    </style>
+</head>
+
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/save-svg-as-png/1.4.17/saveSvgAsPng.min.js"></script>
+    <div class="container">
+        <svg id="yardMap" viewBox="0 0 100 200" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: 90vh">
+            <!-- Add a checkerboard pattern (copied from Inkscape) for use with url(#Checkerboard)-->
+            <defs id="defs2">
+                <pattern patternUnits="userSpaceOnUse" width="2" height="2"
+                    patternTransform="translate(0,0) scale(10,10)" id="Checkerboard">
+                    <rect style="fill:black;stroke:none" x="0" y="0" width="1" height="1" id="rect7610" />
+                    <rect style="fill:black;stroke:none" x="1" y="1" width="1" height="1" id="rect7612" />
+                </pattern>
+            </defs>
+        </svg>
+        <button class="btn btn-primary mt-3"
+            onclick="saveSvgAsPng(document.getElementById('yardMap'), 'yardMap.png', {scale: 5});">Download PNG</button>
+        <button type="button" class="btn btn-primary mt-3" onclick="toggleGroupVis('Extras_Group')">
+            Toggle Extras Group
+        </button>
+    </div>
+    <script>
+
+        // This data was loaded from three UDO tables: SVGCanvas, SVGGroup, and SVGElements with a 1:M relationship where each canvas can have multiple groups and each group can have multiple elements.
+        // Conceptually, SVG groups are similar to Ctrl+G in a graphics program and can contain multiple paths (elements). Each group can be syled together and transformed as a unit.
+        const data = [
+            {
+                "BranchID": 2,
+                "Name": "Lubbock_Yard",
+                "ViewBox": "0 0 151.73072 211.91317",
+                "Groups": [
+                    {
+                        "Name": "Building_Group",
+                        "Transform": "translate(-35.803526,-39.830947)",
+                        "Text": "Main",
+                        "TextStyle": "font-size: .2rem",
+                        "TextX": 120,
+                        "TextY": 163,
+                        "zIndex": 10,
+                        "Elements": [
+                            {
+                                "ID": "Bldg_Boundary",
+                                "d": "m 118.03485,159.61003 h 27.33148 v 54.84151 h -27.33148 z",
+                                "Class": "building",
+                                "Style": "opacity:1;fill-opacity:0.807432;stroke:#000000;stroke-width:0.206375;stroke-linecap:round;stroke-linejoin:round"
+                            }
+                        ]
+                    },
+                    {
+                        "Name": "Extras_Group",
+                        "Transform": "translate(-35.803526,-39.830947)",
+                        "Class": "extrasGroup",
+                        "zIndex": 11,
+                        "Elements": [
+                            {
+                                "ID": "BlackHoleSun",
+                                "d": "m 48.912827,49.103134 a 4.6488543,4.0982041 0 0 1 -4.648854,4.098204 4.6488543,4.0982041 0 0 1 -4.648854,-4.098204 4.6488543,4.0982041 0 0 1 4.648854,-4.098204 4.6488543,4.0982041 0 0 1 4.648854,4.098204 z",
+                                "Class": "extras",
+                                "Style": "opacity:1;stroke-width:0.396081;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:0.0396081, 0.0396081",
+                                "ToolTip": "<H1>Beware the Sun!</h1>",
+                                "zIndex": 2
+                            },
+                            {
+                                "ID": "loadingArea",
+                                "d": "M 99.895859,99.853783 H 177.72511 V 120.64924 H 99.895859 Z",
+                                "Class": "extras",
+                                "Style": "opacity:0.58693936;fill:url(#Checkerboard);fill-opacity:1;stroke:#666666;stroke-width:0.39608125;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:1.584325, 0.7921625, 0.39608125, 0.7921625;stroke-dashoffset:0;stroke-opacity:1",
+                                "ToolTip": "See also url(#checkerboard) definition in SVG element",
+                                "zIndex": 3
+                            },
+                            {
+                                "ID": "greenTriangle",
+                                "d": "M 36.84801,57.0964 20.574996,28.27266 53.673594,28.591686 Z",
+                                "Transform": "matrix(0.26458333,0,0,0.26458333,38.552521,41.356645)",
+                                "Style": "opacity:1;fill:#00d455;stroke-width:1.497;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:0.1497, 0.1497",
+                                "zIndex": 5
+                            }
+                        ]
+                    },
+                    {
+                        "Name": "yardBoundary",
+                        "Transform": "translate(-35.803526,-39.830947)",
+                        "Class": "boundary-test",
+                        "zIndex": 12,
+                        "Elements": [
+                            {
+                                "ID": "Yard boundary",
+                                "d": "m 35.938817,115.49066 61.974557,3.55778 3.267106,132.56145 59.65578,-0.7898 -0.49803,-90.8161 20.21501,0.56874 6.8393,-75.636531 L 37.605364,40.00786 Z",
+                                "Class": "yard-test",
+                                "Style": "fill:none;stroke:#000000;stroke-width:0.265;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            }
+                        ]
+                    },
+                    {
+                        "Name": "rrTracks",
+                        "Style": "stroke-width:0.206375;stroke-miterlimit:4;stroke-dasharray:none;stroke:#666666;stroke-opacity:1;opacity:0.66913997",
+                        "Transform": "translate(-35.803526,-39.830947)",
+                        "ToolTip": "Railroad Tracks",
+                        "zIndex": 13,
+                        "Elements": [
+                            {
+                                "ID": "path901",
+                                "d": "M 187.07714,87.975362 C 144.35081,81.670762 91.763146,97.126043 35.977118,113.9873",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                            },
+                            {
+                                "ID": "path901-3",
+                                "d": "M 186.97834,90.150461 C 144.25201,83.845861 93.592605,98.759338 37.806571,115.62059",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                            },
+                            {
+                                "ID": "path1750",
+                                "d": "m 180.82942,89.389658 0.26921,-2.168948",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                            },
+                            {
+                                "ID": "path1750-6",
+                                "d": "m 174.29045,88.802491 0.26921,-2.168948",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                            },
+                            {
+                                "ID": "path1750-7",
+                                "d": "m 167.7515,88.711098 0.26921,-2.168948",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                            },
+                            {
+                                "ID": "path1750-5",
+                                "d": "m 161.21253,88.756794 0.26921,-2.168948",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-3",
+                                "d": "m 154.67358,88.939581 0.26921,-2.168948",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-56",
+                                "d": "m 148.11856,89.578721 0.26921,-2.168948",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-2",
+                                "d": "m 141.59567,90.222742 0.26921,-2.168948",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-9",
+                                "d": "m 135.05671,91.22474 0.26921,-2.168948",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-1",
+                                "d": "m 128.51774,92.259785 0.26921,-2.168948",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-27",
+                                "d": "m 121.88126,93.264742 0.26921,-2.168948",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-0",
+                                "d": "m 115.42074,94.651666 0.26921,-2.168948",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-93",
+                                "d": "m 108.87486,95.91361 0.26921,-2.168948",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-60",
+                                "d": "m 102.30691,97.458213 0.26921,-2.168948",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-62",
+                                "d": "m 95.822967,99.116957 0.26921,-2.168948",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-61",
+                                "d": "m 89.26952,100.69272 0.26921,-2.16894",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-8",
+                                "d": "m 82.745052,102.48086 0.26921,-2.16896",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-79",
+                                "d": "m 76.191717,104.21774 0.26921,-2.16895",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-20",
+                                "d": "m 69.667138,106.03883 0.26921,-2.16895",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-23",
+                                "d": "m 63.098385,107.96526 0.26921,-2.16895",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-75",
+                                "d": "m 56.561489,109.97173 0.26921,-2.16895",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-92",
+                                "d": "m 50.032732,111.8864 0.26921,-2.16895",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            },
+                            {
+                                "ID": "path1750-28",
+                                "d": "m 43.51131,113.80322 0.26921,-2.16894",
+                                "Style": "fill:none;stroke:#666666;stroke-width:0.206375;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+                            }
+                        ]
+                    },
+                    {
+                        "Name": "Areas",
+                        "Transform": "translate(-35.803526,-39.830947)",
+                        "zIndex": 15,
+                        "Elements": [
+                            {
+                                "ID": "Area01",
+                                "d": "M 187.15291,85.057623 C 186.88478,84.932538 37.781184,40.174928 37.781184,40.174928 l -1.673173,75.171562 61.836776,3.51539 86.195183,0.10127 z",
+                                "Style": "fill:#d5ffd5;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;opacity:0.47319549",
+                                "zIndex": 1
+                            }
+                        ]
+                    }
+                ]
+            }
+        ];
+
+        function toggleGroupVis(groupName) {
+            const extras = document.querySelectorAll(`[name="${groupName}"]`)
+            extras.forEach(elem => {
+                if (elem.style.display === 'none') {
+                    elem.style.display = '';
+                } else {
+                    elem.style.display = 'none';
+                }
+            });
+        }
+
+        function addText(obj) {
+            // TODO: Set z-index for text to 999?
+            if (obj.Text) {
+                const textElement = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                textElement.setAttribute("x", obj.TextX || 0);
+                textElement.setAttribute("y", obj.TextY || 0);
+                textElement.setAttribute("style", obj.TextStyle || "font-family: Arial, sans-serif; font-size: 12px; fill: #333;");
+                if (obj.TextClass) textElement.setAttribute("class", obj.TextClass);
+                textElement.textContent = obj.Text;
+                return textElement;
+            }
+            return null;
+        }
+
+        function addToolTip(element, tooltip) {
+            element.setAttribute("data-bs-toggle", "tooltip");
+            element.setAttribute("data-bs-html", "true");
+            element.setAttribute("title", tooltip);
+            element.style.cursor = "pointer"; // Change cursor to pointer to indicate interactivity
+        }
+
+        function drawMap(svg, canvas) {
+            const ns = "http://www.w3.org/2000/svg";
+            // Loop through all the groups in the passed canvas object
+            canvas.Groups.forEach((group) => {
+                // TODO: This could be refactored...
+                const groupElement = document.createElementNS(ns, "g");
+                if (group.Name) groupElement.setAttribute("name", group.Name);
+                if (group.Style) groupElement.setAttribute("style", group.Style);
+                // Beware the transform=translate(x,y) will move all child elements by the passed coords
+                if (group.Transform) groupElement.setAttribute("transform", group.Transform);
+                // Note that inline styles will be prioritized over CSS classes; if your Style attribute has competing values with a Class attribute, the Style value will be used
+                if (group.Class) groupElement.setAttribute("class", group.Class);
+                const textElem = addText(group);
+                if (textElem) groupElement.appendChild(textElem);
+                // Add group level tooltip if present
+                if (group.ToolTip) addToolTip(groupElement, group.ToolTip);
+
+                // Add z-index if present. Note that z-index is mostly included as a way to sort groups and elements when creating the JSON data.
+                // The order of the JSON data is what determines the actual rendering order.
+                if (group.zIndex) groupElement.style.zIndex = group.zIndex;
+                // Loop through all the elements in the group object
+                group.Elements.forEach((element) => {
+                    const path = document.createElementNS(ns, "path");
+                    if (element["ID"]) path.setAttribute("id", element["ID"]);
+                    if (element["d"]) path.setAttribute("d", element["d"]);
+                    if (element["Class"]) path.setAttribute("class", element["Class"]);
+                    if (element["Style"]) path.setAttribute("style", element["Style"]);
+                    if (element.Transform) path.setAttribute("transform", element.Transform);
+                    // Add z-index if present
+                    if (element.zIndex) path.style.zIndex = element.zIndex;
+                    // Add element text if present
+                    const textElem = addText(element);
+                    // Append any text to the group element so that it renders above paths. Note that the first item in the stack
+                    // is drawn first and subsequent items are drawn on top. This results in text being drawn first with fills drawn over
+                    if (textElem) groupElement.appendChild(textElem);
+
+                    // Add element level tooltip if present
+                    if (element.ToolTip) addToolTip(path, element.ToolTip);
+
+                    groupElement.appendChild(path);
+                });
+                svg.appendChild(groupElement);
+            });
+        }
+        // For this example we just use the first (and only) canvas object; add more if building out multiple tabs or a drop down select
+        const canvas = data[0];
+        const svg = document.getElementById("yardMap");
+        // Each canvas object should have an associated viewBox value
+        if (canvas.ViewBox) svg.setAttribute("viewBox", canvas.ViewBox);
+
+        drawMap(svg, canvas);
+    </script>
+
+    <!-- Bootstrap JS and Popper for tooltips -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"></script>
+    <script>
+        // Initialize Bootstrap tooltips
+        document.addEventListener('DOMContentLoaded', function () {
+            const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            tooltipTriggerList.forEach(tooltipTriggerEl => {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+    </script>
+</body>
+
+</html>

@@ -63,10 +63,11 @@
       const qList = "data/queryList.json";
       // If a Heartbeat object is added as a query, use the Title and DateTimeLastRun property as the data refresh label
       const heartbeat = "Heartbeat";
+      const tasksb = "TasksB";
 
       $.getJSON(qList, function(data) {
-        // Filter out any heartbeat items from the returned array
-        tablQueryArray = data.filter((obj) => obj.Name !== heartbeat);
+        // Filter out any heartbeat and TasksB items from the returned array
+        tablQueryArray = data.filter((obj) => obj.Name !== heartbeat).filter((obj) => obj.Name !== tasksb);
           // Loop through all the non-heartbeat objects in the queryList and load each in a table
           let i = 1;
           tablQueryArray.forEach(function(query) {
