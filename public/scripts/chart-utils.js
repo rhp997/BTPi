@@ -20,34 +20,39 @@ const COLORS = [
   "rgba(133, 73, 186, 1)",
   "rgba(144, 164, 174, 1)",
 ];
+// Refactored to allow reuse of label and percent calculation for bound QlikView widgets
+function getLabelAndPct(data) {
+  const retObj = { label: "", percent: 0 };
 
-/* ----------------------------
-    Description: Creates doughnut charts with an inside label resembling the QlikView gauge
----------------------------- */
-function createQVDonut(data) {
-  let pctCompl = 0;
-  let innerLabel = "";
-  // Avoid division by zero
   if (data.datasets[0].data[0] + data.datasets[0].data[1] != 0) {
     // Add the two values to arrive a full dataset and then divide and round to derive a percentage.
-    pctCompl = Math.round(
+    retObj.percent = Math.round(
       (data.datasets[0].data[0] /
         (data.datasets[0].data[0] + data.datasets[0].data[1])) *
         100
     );
-    innerLabel = pctCompl.toString() + "%";
-    if (pctCompl === 0) {
+    retObj.label = retObj.percent.toString() + "%";
+    if (retObj.percent === 0) {
       // If the percentage is 0, swap the values to create a full red chart
       data.datasets[0].data[0] = data.datasets[0].data[1];
       data.datasets[0].data[1] = 0;
     } // Force a value to make the chart render; all 0s will make an empty chart
   } else {
     // Force a value to make the chart render; all 0s will make an empty chart
-    innerLabel = "-";
+    retObj.label = "-";
     data.datasets[0].data[1] = 1;
   }
+  return retObj;
+}
+
+/* ----------------------------
+    Description: Creates doughnut charts with an inside label resembling the QlikView gauge
+---------------------------- */
+function createQVDonut(data) {
+  // Get the label and percentage completed
+  const { label: innerLabel, percent } = getLabelAndPct(data);
   // Set the background color based on the percentage completed
-  data.datasets[0].backgroundColor[0] = getBgColor(pctCompl);
+  data.datasets[0].backgroundColor[0] = getBgColor(percent);
 
   // Draw the inner circle with text
   const circleLabel = {
