@@ -21,7 +21,9 @@
         "_comment_connectionTimeout": "Maximum time (in milliseconds) that the app will wait for a connection to be established.",
         "connectionTimeout": 5000,
         "_comment_JSONSpaces": "Number of spaces to use for JSON pretty-printing in log files. Set to 0 (default) to minify",
-        "JSONSpaces": 0
+        "JSONSpaces": 0,
+        "_comment_logLevel": "Winston log level: error, warn, info, http, verbose, debug, or silly. Default is info.",
+        "logLevel": "info"
     },
     "wms_proxy": {
         "_comment_info": "Host values should include protocol (e.g., http|s:) and port (e.g., :8702) as needed",
@@ -29,5 +31,13 @@
         "host_pulse": "http://192.168.1.1:1234",
         "_comment_xmlep": "Host ip and port for the WMS QlikView (XML) endpoints",
         "host_xmlep": "http://192.168.1.2:5678"
+    },
+    "admin": {
+        "_comment_enabled": "When true, the /admin UI and API are available (requires user and password)",
+        "enabled": true,
+        "_comment_user": "Basic Auth username for the config admin UI",
+        "user": "admin",
+        "_comment_password": "Basic Auth password. Prefer overriding via ADMIN__PASSWORD in production",
+        "password": "change-me"
     }
 }

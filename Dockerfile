@@ -1,57 +1,38 @@
-### ----------- Example Dockerfile -----------
-### Cloud Run
-# gcloud builds submit --ignore-file=.dockerignore --tag gcr.io/<projectid>/<tag> .
-# gcloud run deploy btpi --image gcr.io/<projectid>/<tag> --port <port> --platform managed --region <region> --allow-unauthenticated
-
-### Docker
-## Build
-# docker build -f Dockerfile -t btpi:1.2.3 .
-## Attach to an image
-# docker run -it --entrypoint /bin/bash btpi:1.2.3
-## Start the container in detached mode
-# docker run -it -d -p 3000:3000 --name BTPi btpi:1.2.3
-# Attach
-## docker exec -it BTPi /bin/bash
+### Build
+# docker build -f Dockerfile -t btpi:latest .
+### Run (see IronHide docker-compose for real deployment)
+# docker run -it -d --name btpi -p 3000:3000 btpi:latest
+#
+# Production: https://btpi.dodsonlumber.net
+# Build context on IronHide: /share/Apps/docker/btpi
+# Compose: /share/Apps/docker/website/docker-compose.yml
 
 FROM node:24-bookworm-slim
+LABEL maintainer="Steve Dodson <support@dodsonlumber.com>"
+LABEL version="1.2.4"
 
-# Match package.json version
-LABEL version="1.2.3"
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nano less procps tzdata libterm-readline-gnu-perl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-### Install a few necessary apps
-RUN apt-get update && apt-get install -y nano less procps tzdata libterm-readline-gnu-perl ca-certificates
-
-### Set our timezone
 ENV TZ=America/Denver
-
-### Optional: Use env variables for configuration
-ENV DATABASE__SERVER="1.2.3.4"
-ENV DATABASE__DATABASE="dbinstance"
-ENV DATABASE__USER="myuser"
-ENV DATABASE__PASSWORD="mypassword"
-ENV DATABASE__OPTIONS__ENCRYPT="false"
-ENV WMS_PROXY__HOST_PULSE="http://1.2.3.4:5678"
-ENV WMS_PROXY__HOST_XMLEP="http://1.2.3.4:8910"
-# Change in conjunction with the exposed port below
 ENV BTPI__PORT=3000
-# Default port to open on the container
-EXPOSE 3000
+# Optional admin UI (override in btpi.env). When unset/disabled, /admin returns 404.
+# ENV ADMIN__ENABLED=true
+# ENV ADMIN__USER=admin
+# ENV ADMIN__PASSWORD=change-me
 
-# Use bash
 SHELL ["/bin/bash", "-c"]
 RUN echo "alias ll='ls -al'" >> /root/.bashrc
 
-# Set the working directory in the container
 WORKDIR /srv/BTPi
 
-# Copy package.json and package-lock.json to the working directory
 COPY package*.json ./
+RUN npm ci --omit=dev
 
-# Install app dependencies
-RUN npm install express mssql winston winston-daily-rotate-file winston moment-timezone node-schedule cors axios xml2js nconf ejs
-
-# Copy the rest of the application code (may require specifying --file-ignore=.dockerfile in the gcloud command)
+### App code; production config.json / queries.json are bind-mounted at runtime
+### from the host (see compose volumes) so admin saves and backups persist.
 COPY . .
 
-# Define the command to run your app
+EXPOSE 3000
 CMD ["npm", "start"]
