@@ -261,7 +261,7 @@ node app.js --btpi.port=3004 --wms_proxy.host_xmlep="http://192.168.0.1:8710"
 
 An example file (config-EXAMPLE.json) file is included with the project.
 
-The configurable parameters consist of three JSON objects:
+The configurable parameters consist of the following JSON objects:
 
 1. **database** - A mssql database <a href="https://tediousjs.github.io/node-mssql/">connection object</a>
 
@@ -283,11 +283,12 @@ The configurable parameters consist of three JSON objects:
        "port": 3000,
        "interval": "*/30 8-17 * * 1-5",
         "connectionTimeout": 5000,
-        "JSONSpaces": 0
+        "JSONSpaces": 0,
+        "logLevel": "info"
    }
    ```
 
-   BTPi will listen on the configured port and run on the scheduled interval which utilizes crontab format (see also https://crontab.guru/). The connectionTimeout parameter controls how long the app will wait before aborting a check connectivity test. The JSONSpaces parameter defines how the JSON will be returned; set to 0 to minify output.
+   BTPi will listen on the configured port and run on the scheduled interval which utilizes crontab format (see also https://crontab.guru/). The connectionTimeout parameter controls how long the app will wait before aborting a check connectivity test. The JSONSpaces parameter defines how the JSON will be returned; set to 0 to minify output. The logLevel parameter sets the Winston log level (`error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`).
 
 3. **wms_proxy** - Endpoint URLs when using the proxy routes
 
@@ -299,6 +300,29 @@ The configurable parameters consist of three JSON objects:
    ```
 
    The WMS Pulse Board and QlikView endpoints (XML) can be configured here to avoid their inclusion in client side code. If these parameters have been set, a relative path may be utilized in client-side fetches.
+
+4. **admin** - Credentials for the configuration admin UI (optional)
+
+   ```
+   "admin": {
+       "enabled": true,
+       "user": "admin",
+       "password": "change-me"
+   }
+   ```
+
+   When `enabled` is true and both `user` and `password` are set, the admin UI is available at `/admin` with HTTP Basic Auth. Environment overrides: `ADMIN__ENABLED`, `ADMIN__USER`, `ADMIN__PASSWORD`. If admin is disabled or credentials are empty, `/admin` returns 404.
+
+### Admin configuration UI
+
+Browse to `http://<host>:<port>/admin` and sign in with the admin Basic Auth credentials. The UI exposes fixed fields from `config.json` and `queries.json` (no freeform keys):
+
+- **Settings** — database, BTPi (including cron schedule and log level), WMS proxy hosts, and admin credentials. Help text from `_comment_*` keys appears on info icons. Password fields include show/hide toggles. The schedule field links to [crontab.guru](https://crontab.guru/).
+- **Queries** — select a query from a dropdown, edit Name/Title/SQL/File/Enabled (SQL uses a code editor). Query names must be unique. Add or delete queries of the fixed shape only.
+
+**Hot-reload vs restart:** Most settings (queries, schedule, log level, database, proxy, admin credentials) apply live after save. Changing `btpi.port` requires a process restart; the UI marks this and offers **Restart server** (`process.exit` so Docker/systemd/pm2 can respawn the process). TLS is not required for Basic Auth on a trusted LAN; a reverse proxy can terminate TLS if the app is exposed off-LAN.
+
+Changing the admin username or password applies immediately and forces a re-login (new Basic Auth realm) so the browser prompts for the new credentials.
 
 _Note:_ If the btpi.port setting is changed from the default (3000), it will also need to be updated <a href="RPIConfig.md#elsewhere">in the RPi startup file</a>.
 

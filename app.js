@@ -31,6 +31,7 @@ const defInternetTimeout = 5000; // Check internet connectivity timeout in milli
 const defPort = 3000; // Port to listen on
 const defInterval = "*/30 8-17 * * 1-5"; // Every 30 minutes between 8 AM and 5 PM, Monday through Friday
 const defJSONSpaces = 0; // Set to a non-zero number to prettify returned JSON
+const defLogLevel = "info"; // Winston log level
 
 // Winston handles logging; moment-timezone formats timestamps; +winston-daily-rotate-file rotates logs daily
 const winston = require("winston");
@@ -42,9 +43,9 @@ const schedule = require("node-schedule");
 const { error } = require("console");
 const appName = require("./package.json").name;
 
-// Set up the logger
+// Set up the logger (level applied from config after nconf loads)
 const logger = winston.createLogger({
-  level: "info",
+  level: defLogLevel,
   // Send logs to multiple outputs with timestamp in JSON format
   format: winston.format.combine(
     // Use the current time zone for the timestamp
@@ -89,7 +90,7 @@ nconf
     // ENV variables that are UPPERCASE are converted to lowercase here
     lowerCase: true,
     parseValues: true,
-    match: /^BTPI|^DATABASE|^WMS_PROXY/i,
+    match: /^BTPI|^DATABASE|^WMS_PROXY|^ADMIN/i,
   })
   .file("config", { file: path.join(__dirname, "config", "config.json") })
   .file("queries", { file: path.join(__dirname, "config", "queries.json") })
@@ -99,6 +100,7 @@ nconf
       interval: defInterval,
       connectionTimeout: defInternetTimeout,
       JSONSpaces: defJSONSpaces,
+      logLevel: defLogLevel,
     },
     // Add defaults for the required components; this allows container builds to succeed
     // even though the defaults won't work in production
@@ -112,6 +114,11 @@ nconf
         encrypt: false,
       },
     },
+    admin: {
+      enabled: false,
+      user: "",
+      password: "",
+    },
     queries: [],
   })
   .required([
@@ -124,27 +131,151 @@ nconf
     "queries",
   ]);
 
-// Create a local config object for easy reference
+// Create a local config object for easy reference (mutated by admin hot-reload)
 const config = {
-  btpi: nconf.get("btpi"),
+  btpi: nconf.get("btpi") || {},
   database: nconf.get("database"),
-  wms_proxy: nconf.get("wms_proxy"),
-  queries: nconf.get("queries"),
+  wms_proxy: nconf.get("wms_proxy") || {},
+  admin: nconf.get("admin") || { enabled: false },
+  queries: nconf.get("queries") || [],
 };
+
+// Apply Winston level from config
+if (config.btpi.logLevel) {
+  logger.level = config.btpi.logLevel;
+}
 
 // Publish the public folder
 app.use(express.static(path.join(__dirname, "public")));
+// JSON body parser for admin API
+app.use(express.json({ limit: "2mb" }));
 // Set JSON spacing
 app.set("json spaces", config.btpi.JSONSpaces);
 
+// Mutable schedule job — recreated when btpi.interval changes via admin UI
+let job = null;
+
+function rescheduleQueriesJob(interval) {
+  const cron = interval || config.btpi.interval || defInterval;
+  if (job) {
+    try {
+      job.cancel();
+    } catch (err) {
+      logger.warn(`Failed to cancel previous schedule: ${err.message}`);
+    }
+    job = null;
+  }
+  // Validate by attempting to schedule; node-schedule returns null for invalid cron
+  const nextJob = schedule.scheduleJob(cron, function () {
+    logger.info("Running scheduled job");
+    runQueries(config.queries);
+  });
+  if (!nextJob) {
+    throw new Error(`Invalid cron expression: "${cron}"`);
+  }
+  job = nextJob;
+  config.btpi.interval = cron;
+  nconf.set("btpi:interval", cron);
+  logger.info(`Schedule set to frequency ${cron}`);
+  return job;
+}
+
 // TODO: Use main config file as default, but allow individual overrides for each query
-logger.info(`Creating schedule with frequency ${config.btpi.interval}`);
-// Load the configuration's frequencey (crontab format) and run all queries on that schedule
-const job = schedule.scheduleJob(config.btpi.interval, function () {
-  logger.info("Running scheduled job");
-  // Keep the data fresh by automatically running the queries
-  runQueries(config.queries);
-});
+try {
+  rescheduleQueriesJob(config.btpi.interval);
+} catch (err) {
+  logger.error(`Initial schedule failed: ${err.message}; using default ${defInterval}`);
+  rescheduleQueriesJob(defInterval);
+}
+
+// ---- Admin config hot-reload helpers ----------------------------------------
+const { createAdminAuth } = require("./lib/adminAuth");
+const {
+  readConfigFile,
+  readQueriesFile,
+} = require("./lib/configFiles");
+const { createAdminRouter } = require("./routes/admin");
+
+const adminAuth = createAdminAuth(() => config.admin);
+
+function applyConfigFromDisk() {
+  const disk = readConfigFile();
+  const applied = [];
+  let requiresRestart = false;
+
+  const prevPort = config.btpi && config.btpi.port;
+
+  // database
+  if (disk.database) {
+    config.database = disk.database;
+    nconf.set("database", disk.database);
+    applied.push("database");
+  }
+
+  // btpi
+  if (disk.btpi) {
+    const prevInterval = config.btpi.interval;
+    config.btpi = Object.assign({}, config.btpi, disk.btpi);
+    nconf.set("btpi", config.btpi);
+
+    if (disk.btpi.logLevel) {
+      logger.level = disk.btpi.logLevel;
+      applied.push("btpi.logLevel");
+    }
+    if (disk.btpi.JSONSpaces !== undefined) {
+      app.set("json spaces", disk.btpi.JSONSpaces);
+      applied.push("btpi.JSONSpaces");
+    }
+    if (disk.btpi.connectionTimeout !== undefined) {
+      applied.push("btpi.connectionTimeout");
+    }
+    if (disk.btpi.interval && disk.btpi.interval !== prevInterval) {
+      rescheduleQueriesJob(disk.btpi.interval);
+      applied.push("btpi.interval");
+    }
+    if (disk.btpi.port !== undefined && Number(disk.btpi.port) !== Number(prevPort)) {
+      requiresRestart = true;
+      applied.push("btpi.port (restart required)");
+    } else if (disk.btpi.port !== undefined) {
+      applied.push("btpi.port");
+    }
+  }
+
+  // wms_proxy
+  if (disk.wms_proxy) {
+    config.wms_proxy = disk.wms_proxy;
+    nconf.set("wms_proxy", disk.wms_proxy);
+    applied.push("wms_proxy");
+  }
+
+  // admin
+  if (disk.admin) {
+    config.admin = disk.admin;
+    nconf.set("admin", disk.admin);
+    applied.push("admin");
+  }
+
+  return { applied, requiresRestart };
+}
+
+function applyQueriesFromDisk() {
+  const disk = readQueriesFile();
+  const list = Array.isArray(disk.queries) ? disk.queries : [];
+  config.queries = list;
+  nconf.set("queries", list);
+  return { applied: ["queries"], requiresRestart: false };
+}
+
+app.use(
+  "/admin",
+  createAdminRouter({
+    adminAuth,
+    applyConfigFromDisk,
+    applyQueriesFromDisk,
+    getRuntimeConfig: () => config,
+    logger,
+  })
+);
 
 /* -----------------------------------------------------------------
   Sync function to "sleep" for the passed time in milliseconds
