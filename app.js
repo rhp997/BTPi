@@ -428,7 +428,7 @@ async function runQueries(
             queries[i].LastModified = curDT;
             queries[i].Error = "";
           } else {
-            logger.warn(`Query ${queries[i].Name} returned no results.`);
+            logger.info(`Query ${queries[i].Name} returned no results.`);
           }
         } else {
           logger.info(`Query ${queries[i].Name} is not enabled; skipping.`);
