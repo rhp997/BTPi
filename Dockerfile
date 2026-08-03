@@ -25,6 +25,13 @@ ENV BTPI__PORT=3000
 SHELL ["/bin/bash", "-c"]
 RUN echo "alias ll='ls -al'" >> /root/.bashrc
 
+### Container-attach notice: shown on every login shell (e.g. `docker exec
+### ... bash -l`, our IronHide access pattern) and every non-login
+### interactive shell, so no one mistakes this for the real Raspberry Pi.
+COPY docker/notice.sh /etc/profile.d/notice.sh
+RUN chmod +x /etc/profile.d/notice.sh \
+    && printf '\nif [ -r /etc/profile.d/notice.sh ]; then . /etc/profile.d/notice.sh; fi\n' >> /etc/bash.bashrc
+
 WORKDIR /srv/BTPi
 
 COPY package*.json ./
