@@ -16,13 +16,13 @@
 </head>
 
 <body>
-  <div class="container-fluid px-5">
-    <h3 class="pt-5 pb-4">Cycle Counts & Put Aways</h3>
+  <div class="container-fluid px-5 d-flex flex-column justify-content-center" style="min-height: 100vh;">
+    <h3 class="pt-5 pb-4 text-center">Cycle Counts & Put Aways</h3>
     <div class="row mt-1">
-      <div class="">
+      <div class="w-100 text-center">
         <p class="h4 align-bottom p-2">Current Week</p>
       </div>
-      <div class="d-flex align-items-start flex-row">
+      <div class="d-flex justify-content-center align-items-center flex-row">
         <div class="border p-2">
           <canvas id="cyc_compl_cur"></canvas>
         </div>
@@ -33,16 +33,16 @@
           <canvas id="pa_complete"></canvas>
         </div>
       </div>
-      <div class="">
+      <div class="w-100 text-center">
         <p class="h4 align-bottom p-2">Last Two Months</p>
       </div>
-      <div class="d-flex align-items-start flex-row" id="cycCurrent">
+      <div class="d-flex justify-content-center align-items-center flex-row" id="cycCurrent">
         <div class="border p-2"><canvas id="cyc_compl_sel"></canvas></div>
         <div class="border p-2"><canvas id="cyc_acc_sel"></canvas></div>
         <div class="border p-2"><canvas id="pa_by_loc"></canvas></div>
       </div>
-      <div class="align-items-start flex-row w-25" id="cycDropdown">
-        <div class="p-2">
+      <div class="d-flex justify-content-center w-100" id="cycDropdown">
+        <div class="p-2 text-center" style="min-width: 200px;">
           <label for="dateDropdown">Select a week:</label>
           <select id="dateDropdown" class="form-select">
             <option>Loading dates...</option>
