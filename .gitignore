@@ -9,5 +9,6 @@ oldcode.txt
 package-lock.json
 srd.js
 *.yaml
+*.env
 *test*
 config/config2-EXAMPLE.json
