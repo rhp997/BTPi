@@ -6,7 +6,6 @@ config/.*.tmp
 installation.txt
 mssql.js
 oldcode.txt
-package-lock.json
 srd.js
 *.yaml
 *.env
