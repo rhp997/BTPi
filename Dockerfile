@@ -1,11 +1,7 @@
 ### Build
 # docker build -f Dockerfile -t btpi:latest .
-### Run (see [server] docker-compose for real deployment)
+### Run (production deployments typically use docker compose)
 # docker run -it -d --name btpi -p 3000:3000 btpi:latest
-#
-# Production: https://example.com
-# Build context on [server]: /path/to/compose
-# Compose: /path/to/compose
 
 FROM node:24-bookworm-slim
 LABEL version="1.2.4"
@@ -25,7 +21,7 @@ SHELL ["/bin/bash", "-c"]
 RUN echo "alias ll='ls -al'" >> /root/.bashrc
 
 ### Container-attach notice: shown on every login shell (e.g. `docker exec
-### ... bash -l`, our [server] access pattern) and every non-login
+### ... bash -l`) and every non-login
 ### interactive shell, so no one mistakes this for the real Raspberry Pi.
 COPY docker/notice.sh /etc/profile.d/notice.sh
 RUN chmod +x /etc/profile.d/notice.sh \
