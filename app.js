@@ -55,14 +55,18 @@ const logger = winston.createLogger({
     }),
     winston.format.json()
   ),
-  // Log everything to to console and <appName>-YYYY-MM-DD.json, and only warnings and errors to error.json
+  // Log everything to to console and <appName>-YYYY-MM-DD.json, and only warnings and errors to error-YYYY-MM-DD.json
   // Creates a valid JSON one line entry (no commas separating objects) for easy parsing line by line
   transports: [
     new winston.transports.Console({ format: winston.format.cli() }),
-    new winston.transports.File({
-      filename: path.join(__dirname, "logs", "error.json"),
+    // Rotated like the info log; a plain error.json grew without bound (10 MB of stack traces by 2026-10)
+    new winston.transports.DailyRotateFile({
+      filename: path.join(__dirname, "logs", "error-%DATE%.json"),
+      datePattern: "YYYY-MM-DD",
+      zippedArchive: true,
       level: "warn",
       format: winston.format.json(),
+      maxFiles: "14d",
     }),
     // Rotate logs daily with the date pattern and keep 14 days of logs
     new winston.transports.DailyRotateFile({
