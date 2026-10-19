@@ -13,9 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV TZ=America/Denver
 ENV BTPI__PORT=3000
 # Optional admin UI (override in btpi.env). When unset/disabled, /admin returns 404.
+# Sign-in is the directory gate, not a password in this file.
 # ENV ADMIN__ENABLED=true
-# ENV ADMIN__USER=admin
-# ENV ADMIN__PASSWORD=change-me
 
 SHELL ["/bin/bash", "-c"]
 RUN echo "alias ll='ls -al'" >> /root/.bashrc

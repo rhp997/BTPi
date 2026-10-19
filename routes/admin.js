@@ -18,7 +18,6 @@ const {
  * @param {object} deps.adminAuth - from createAdminAuth
  * @param {function} deps.applyConfigFromDisk - () => { applied, requiresRestart }
  * @param {function} deps.applyQueriesFromDisk - () => void
- * @param {function} deps.getRuntimeConfig - () => config snapshot for credentials compare
  * @param {object} deps.logger
  */
 function createAdminRouter(deps) {
@@ -26,9 +25,21 @@ function createAdminRouter(deps) {
     adminAuth,
     applyConfigFromDisk,
     applyQueriesFromDisk,
-    getRuntimeConfig,
     logger,
   } = deps;
+
+  function actor(req) {
+    return adminAuth.requestUser(req) || "unknown";
+  }
+
+  function configForClient(data) {
+    const copy = JSON.parse(JSON.stringify(data));
+    if (copy && copy.admin && typeof copy.admin === "object") {
+      delete copy.admin.user;
+      delete copy.admin.password;
+    }
+    return copy;
+  }
 
   const router = express.Router();
   router.use(adminAuth.middleware);
@@ -39,7 +50,7 @@ function createAdminRouter(deps) {
 
   router.get("/api/config", (req, res) => {
     try {
-      const data = readConfigFile();
+      const data = configForClient(readConfigFile());
       res.json(data);
     } catch (err) {
       logger.error(`admin GET config: ${err.message}`);
@@ -50,34 +61,16 @@ function createAdminRouter(deps) {
   router.put("/api/config", (req, res) => {
     try {
       const disk = readConfigFile();
-      const prevAdmin = (getRuntimeConfig().admin || disk.admin || {});
       const merged = mergeConfigAllowList(disk, req.body);
-
-      // Detect credential change before write
-      const newAdmin = merged.admin || {};
-      const userChanged =
-        String(prevAdmin.user ?? "") !== String(newAdmin.user ?? "");
-      const passChanged =
-        String(prevAdmin.password ?? "") !== String(newAdmin.password ?? "");
-      const requiresReauth = userChanged || passChanged;
-
       writeConfigFile(merged);
 
-      if (requiresReauth) {
-        adminAuth.bumpAuthGeneration();
-      }
-
       const applyResult = applyConfigFromDisk();
-      logger.info("Admin saved config.json");
+      logger.info(`Admin saved config.json (${actor(req)})`);
 
       res.json({
         ok: true,
         applied: applyResult.applied || [],
         requiresRestart: Boolean(applyResult.requiresRestart),
-        requiresReauth,
-        message: requiresReauth
-          ? "Admin credentials updated. Sign in again with the new username/password."
-          : undefined,
       });
     } catch (err) {
       logger.error(`admin PUT config: ${err.message}`);
@@ -101,12 +94,11 @@ function createAdminRouter(deps) {
       const merged = mergeQueriesAllowList(disk, req.body);
       writeQueriesFile(merged);
       applyQueriesFromDisk();
-      logger.info("Admin saved queries.json");
+      logger.info(`Admin saved queries.json (${actor(req)})`);
       res.json({
         ok: true,
         applied: ["queries"],
         requiresRestart: false,
-        requiresReauth: false,
       });
     } catch (err) {
       logger.error(`admin PUT queries: ${err.message}`);
@@ -131,7 +123,7 @@ function createAdminRouter(deps) {
   });
 
   router.post("/api/restart", (req, res) => {
-    logger.warn("Admin requested process restart");
+    logger.warn(`Admin requested process restart (${actor(req)})`);
     res.status(202).json({
       ok: true,
       message:
@@ -140,11 +132,6 @@ function createAdminRouter(deps) {
     setTimeout(() => {
       process.exit(0);
     }, 250);
-  });
-
-  /** Used after credential change to force browser Basic Auth re-prompt */
-  router.get("/api/reauth", (req, res) => {
-    return adminAuth.forceReauth(req, res);
   });
 
   return router;

@@ -267,24 +267,11 @@
                 <span class="badge badge-live">Applies live</span>
               </div>
               <div class="card-body">
-                <div class="form-check form-switch mb-3">
+                <div class="form-check form-switch mb-0">
                   <input class="form-check-input" type="checkbox" id="admin-enabled">
                   <label class="form-check-label field-label" for="admin-enabled">Enabled <span data-comment-for="admin.enabled"></span></label>
                 </div>
-                <div class="mb-3">
-                  <label class="form-label field-label" for="admin-user">User <span data-comment-for="admin.user"></span></label>
-                  <input type="text" class="form-control" id="admin-user" autocomplete="username">
-                </div>
-                <div class="mb-0">
-                  <label class="form-label field-label" for="admin-password">Password <span data-comment-for="admin.password"></span></label>
-                  <div class="input-group">
-                    <input type="password" class="form-control" id="admin-password" autocomplete="new-password">
-                    <button class="btn btn-outline-secondary password-toggle" type="button" data-target="admin-password" title="Show password" aria-label="Show password">
-                      <i class="bi bi-eye"></i>
-                    </button>
-                  </div>
-                  <div class="form-text">Changing username or password requires signing in again with the new credentials.</div>
-                </div>
+                <div class="form-text">Sign-in is the directory account. This switch only turns the admin UI off.</div>
               </div>
             </div>
           </div>
@@ -353,23 +340,6 @@
 
   <div id="toast-container"></div>
 
-  <!-- Re-auth modal -->
-  <div class="modal fade" id="reauthModal" tabindex="-1" aria-labelledby="reauthModalLabel" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title" id="reauthModalLabel">Sign in again</h5>
-        </div>
-        <div class="modal-body">
-          Admin credentials were updated. You will need to sign in again with the new username and password.
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-primary" id="btnReauthOk">Continue</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Restart modal -->
   <div class="modal fade" id="restartModal" tabindex="-1" aria-labelledby="restartModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -417,10 +387,6 @@
   let formSnapshot = null;
   let sqlEditor = null;
   let needsRestart = false;
-  let originalAdminUser = "";
-  let originalAdminPassword = "";
-
-  const reauthModal = () => new bootstrap.Modal(document.getElementById("reauthModal"));
   const restartModal = () => new bootstrap.Modal(document.getElementById("restartModal"));
 
   function showToast(message, type) {
@@ -528,7 +494,7 @@
     }
     const res = await fetch(url, opts);
     if (res.status === 401) {
-      throw new Error("Unauthorized — check admin credentials.");
+      throw new Error("Sign in required.");
     }
     let data = null;
     const ct = res.headers.get("content-type") || "";
@@ -571,10 +537,6 @@
 
     document.getElementById("admin-enabled").checked =
       admin.enabled === undefined || admin.enabled === null ? true : Boolean(admin.enabled);
-    document.getElementById("admin-user").value = admin.user ?? "";
-    document.getElementById("admin-password").value = admin.password ?? "";
-    originalAdminUser = String(admin.user ?? "");
-    originalAdminPassword = String(admin.password ?? "");
 
     applyCommentIcons(buildCommentMap(doc));
   }
@@ -605,8 +567,6 @@
       },
       admin: {
         enabled: document.getElementById("admin-enabled").checked,
-        user: document.getElementById("admin-user").value,
-        password: document.getElementById("admin-password").value,
       },
     };
   }
@@ -806,13 +766,8 @@
       if (result.requiresRestart) setRestartBanner(true);
       const applied = (result.applied || []).join(", ") || "settings";
       showToast("Configuration saved. Applied: " + applied, "success");
-      if (result.requiresReauth) {
-        reauthModal().show();
-      } else {
-        // Refresh comments / values from disk
-        const fresh = await api("GET", "/admin/api/config");
-        fillConfigForm(fresh);
-      }
+      const fresh = await api("GET", "/admin/api/config");
+      fillConfigForm(fresh);
     } catch (err) {
       showToast(err.message, "error");
     }
@@ -889,15 +844,6 @@
     } catch (err) {
       showToast(err.message, "error");
     }
-  });
-
-  document.getElementById("btnReauthOk").addEventListener("click", () => {
-    // Force browser to drop cached Basic Auth via new realm challenge, then reload
-    fetch("/admin/api/reauth", { credentials: "omit" })
-      .catch(() => {})
-      .finally(() => {
-        window.location.href = "/admin";
-      });
   });
 
   async function init() {

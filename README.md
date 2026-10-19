@@ -301,28 +301,24 @@ The configurable parameters consist of the following JSON objects:
 
    The WMS Pulse Board and QlikView endpoints (XML) can be configured here to avoid their inclusion in client side code. If these parameters have been set, a relative path may be utilized in client-side fetches.
 
-4. **admin** - Credentials for the configuration admin UI (optional)
+4. **admin** - Whether the configuration admin UI is available
 
    ```
    "admin": {
-       "enabled": true,
-       "user": "admin",
-       "password": "change-me"
+       "enabled": true
    }
    ```
 
-   When `enabled` is true and both `user` and `password` are set, the admin UI is available at `/admin` with HTTP Basic Auth. Environment overrides: `ADMIN__ENABLED`, `ADMIN__USER`, `ADMIN__PASSWORD`. If admin is disabled or credentials are empty, `/admin` returns 404.
+   When `enabled` is true, `/admin` is available. Sign-in is the directory gate in front of the app. `ADMIN__ENABLED` can override the switch. If admin is disabled, `/admin` returns 404. A request with no `X-Auth-Request-User` header returns 401.
 
 ### Admin configuration UI
 
-Browse to `http://<host>:<port>/admin` and sign in with the admin Basic Auth credentials. The UI exposes fixed fields from `config.json` and `queries.json` (no freeform keys):
+Browse to `http://<host>:<port>/admin`. The directory gate signs you in. The UI exposes fixed fields from `config.json` and `queries.json` (no freeform keys):
 
-- **Settings** — database, BTPi (including cron schedule and log level), WMS proxy hosts, and admin credentials. Help text from `_comment_*` keys appears on info icons. Password fields include show/hide toggles. The schedule field links to [crontab.guru](https://crontab.guru/).
+- **Settings** — database, BTPi (including cron schedule and log level), WMS proxy hosts, and the admin enabled switch. Help text from `_comment_*` keys appears on info icons. Password fields include show/hide toggles. The schedule field links to [crontab.guru](https://crontab.guru/).
 - **Queries** — select a query from a dropdown, edit Name/Title/SQL/File/Enabled (SQL uses a code editor). Query names must be unique. Add or delete queries of the fixed shape only.
 
-**Hot-reload vs restart:** Most settings (queries, schedule, log level, database, proxy, admin credentials) apply live after save. Changing `btpi.port` requires a process restart; the UI marks this and offers **Restart server** (`process.exit` so Docker/systemd/pm2 can respawn the process). TLS is not required for Basic Auth on a trusted LAN; a reverse proxy can terminate TLS if the app is exposed off-LAN.
-
-Changing the admin username or password applies immediately and forces a re-login (new Basic Auth realm) so the browser prompts for the new credentials.
+**Hot-reload vs restart:** Most settings (queries, schedule, log level, database, proxy, the admin switch) apply live after save. Changing `btpi.port` requires a process restart; the UI marks this and offers **Restart server** (`process.exit` so Docker/systemd/pm2 can respawn the process). A reverse proxy terminates TLS.
 
 _Note:_ If the btpi.port setting is changed from the default (3000), it will also need to be updated <a href="RPIConfig.md#elsewhere">in the RPi startup file</a>.
 
