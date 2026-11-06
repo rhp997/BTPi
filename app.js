@@ -94,7 +94,7 @@ nconf
     // ENV variables that are UPPERCASE are converted to lowercase here
     lowerCase: true,
     parseValues: true,
-    match: /^BTPI|^DATABASE|^WMS_PROXY|^ADMIN/i,
+    match: /^BTPI|^DATABASE|^WMS_PROXY|^ADMIN|^PRODUCTMAP/i,
   })
   .file("config", { file: path.join(__dirname, "config", "config.json") })
   .file("queries", { file: path.join(__dirname, "config", "queries.json") })
@@ -123,6 +123,12 @@ nconf
       user: "",
       password: "",
     },
+    // WMS Product Map data job (lib/productMap.js); off unless enabled
+    productmap: {
+      enabled: false,
+      interval: "10 1 * * 2",
+      output: "/srv/ftp/prods.js",
+    },
     queries: [],
   })
   .required([
@@ -141,6 +147,7 @@ const config = {
   database: nconf.get("database"),
   wms_proxy: nconf.get("wms_proxy") || {},
   admin: nconf.get("admin") || { enabled: false },
+  productmap: nconf.get("productmap") || { enabled: false },
   queries: nconf.get("queries") || [],
 };
 
@@ -191,6 +198,50 @@ try {
   logger.error(`Initial schedule failed: ${err.message}; using default ${defInterval}`);
   rescheduleQueriesJob(defInterval);
 }
+
+// ---- WMS Product Map job -------------------------------------------------------
+const productMap = require("./lib/productMap");
+let productMapJob = null;
+let productMapRunning = false;
+
+function rescheduleProductMapJob() {
+  if (productMapJob) {
+    productMapJob.cancel();
+    productMapJob = null;
+  }
+  const pm = config.productmap || {};
+  if (!pm.enabled) {
+    logger.info("Product map job disabled");
+    return;
+  }
+  productMapJob = schedule.scheduleJob(pm.interval, async () => {
+    if (productMapRunning) {
+      logger.warn("productMap: previous run still going; skipping");
+      return;
+    }
+    productMapRunning = true;
+    try {
+      await productMap.run({
+        sql,
+        database: nconf.get("database"),
+        wmsHost: config.wms_proxy.host_xmlep,
+        output: pm.output,
+        logger,
+      });
+    } catch (err) {
+      logger.error(`productMap: run failed: ${err.message}`);
+    } finally {
+      productMapRunning = false;
+    }
+  });
+  if (!productMapJob) {
+    logger.error(`productMap: invalid cron expression "${pm.interval}"; job not scheduled`);
+    return;
+  }
+  logger.info(`Product map job set to ${pm.interval}, writing ${pm.output}`);
+}
+
+rescheduleProductMapJob();
 
 // ---- Admin config hot-reload helpers ----------------------------------------
 const { createAdminAuth } = require("./lib/adminAuth");
@@ -250,6 +301,14 @@ function applyConfigFromDisk() {
     config.wms_proxy = disk.wms_proxy;
     nconf.set("wms_proxy", disk.wms_proxy);
     applied.push("wms_proxy");
+  }
+
+  // productmap
+  if (disk.productmap) {
+    config.productmap = Object.assign({}, config.productmap, disk.productmap);
+    nconf.set("productmap", config.productmap);
+    rescheduleProductMapJob();
+    applied.push("productmap");
   }
 
   // admin

@@ -244,6 +244,10 @@ _Note:_ Encapsulating API parameters in the "data" section reads easier and nega
 
 <a name="server-config" id="server-config"></a>
 
+## WMS Product Map job
+
+A weekly job (`lib/productMap.js`, off unless `productmap.enabled`) builds the data file for the WMS Product Map dashboard: pack counts per yard location for every in-stock product, grouped by stock class. The dashboard itself lives in `productmap/`. See [productmap/README.md](productmap/README.md).
+
 ## Server Configuration
 
 For detailed information on installing and configuring the Node.js environment, see the <a href="RPIConfig.md#nodejs">relevant section</a> in the RPi Config page.
