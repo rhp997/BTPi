@@ -246,7 +246,15 @@ _Note:_ Encapsulating API parameters in the "data" section reads easier and nega
 
 ## WMS Product Map job
 
-A weekly job (`lib/productMap.js`, off unless `productmap.enabled`) builds the data file for the WMS Product Map dashboard: pack counts per yard location for every in-stock product, grouped by stock class. The dashboard itself lives in `productmap/`. See [productmap/README.md](productmap/README.md).
+A weekly job (`lib/productMap.js`, off unless `productmap.enabled`) builds the data file for the WMS Product Map dashboard: pack counts per yard location for every in-stock product, grouped by stock class. One SQL query (in-stock products at branch 1 with their stock class), then one WMS `InventoryBySCE` call per product; the result is written atomically as `let Products = {...};`, and a run with no products or more than 20% failed lookups keeps the previous file.
+
+| Setting | Env | Default |
+|---|---|---|
+| `productmap.enabled` | `PRODUCTMAP__ENABLED` | `false` |
+| `productmap.interval` | `PRODUCTMAP__INTERVAL` | `10 1 * * 2` (cron, container time) |
+| `productmap.output` | `PRODUCTMAP__OUTPUT` | `/srv/ftp/prods.js` |
+
+The WMS host is `wms_proxy.host_xmlep`. Run once by hand: `node lib/productMap.js --out /tmp/prods.js [--pause 100]` (exit 0 when written). The dashboard, the file's format, and how the file reaches it are documented in the separate ProductMap repo.
 
 ## Server Configuration
 

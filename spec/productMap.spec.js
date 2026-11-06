@@ -78,22 +78,3 @@ test("writeAtomic replaces the file and leaves no temp file", async () => {
   assert.equal(fs.readFileSync(f, "utf8"), "new");
   assert.deepEqual(fs.readdirSync(dir), ["prods.js"]);
 });
-
-// The dashboard's badge counts must be the same for both file formats.
-function loadIMap(Products) {
-  const code = fs.readFileSync(path.join(__dirname, "..", "productmap", "scripts", "IMap.js"), "utf8");
-  const ctx = { Products, console };
-  vm.runInNewContext(code + "\nthis.IMap = IMap;", ctx);
-  return ctx.IMap;
-}
-
-test("IMap badge counts match for format 1 (repeats) and format 2 (counts)", () => {
-  const f1 = { A: { P1: { locations: ["03A09", "10B02", "10B02", "10B02", "10B02"] }, P2: { locations: ["10B02"] } } };
-  const f2 = { A: { P1: { locations: { "03A09": 1, "10B02": 4 } }, P2: { locations: { "10B02": 1 } } } };
-  for (const Products of [f1, f2]) {
-    const IMap = loadIMap(Products);
-    const m = new IMap({}, {}, 0, 0);
-    m.getDistinctLocsBadges(Products.A);
-    assert.deepEqual(Object.fromEntries(m.LocsBadges), { "03A09": 1, "10B02": 5 });
-  }
-});

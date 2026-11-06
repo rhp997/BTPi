@@ -9,5 +9,4 @@ public/data/*.json
 public/images/*.svg
 rpi-config/
 *.yaml
-productmap/
 spec/
