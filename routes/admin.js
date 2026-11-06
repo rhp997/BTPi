@@ -38,6 +38,11 @@ function createAdminRouter(deps) {
       delete copy.admin.user;
       delete copy.admin.password;
     }
+    // Never send the database password to the browser; a blank field on
+    // save keeps what is stored (see mergeConfigAllowList).
+    if (copy && copy.database && typeof copy.database === "object") {
+      copy.database.password = "";
+    }
     return copy;
   }
 

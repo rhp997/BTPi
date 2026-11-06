@@ -253,6 +253,16 @@ const { createAdminRouter } = require("./routes/admin");
 
 const adminAuth = createAdminAuth(() => config.admin);
 
+// Database settings from the environment (btpi.env: DATABASE__USER etc.)
+// always win over config.json. Without this, an admin save put config.json's
+// database block in nconf's memory store, above the environment, and BTPi
+// switched to whatever login config.json held.
+const ENV_DATABASE = {};
+for (const key of ["user", "password", "server", "database"]) {
+  const v = process.env[`DATABASE__${key.toUpperCase()}`];
+  if (v !== undefined && v !== "") ENV_DATABASE[key] = v;
+}
+
 function applyConfigFromDisk() {
   const disk = readConfigFile();
   const applied = [];
@@ -262,8 +272,9 @@ function applyConfigFromDisk() {
 
   // database
   if (disk.database) {
-    config.database = disk.database;
-    nconf.set("database", disk.database);
+    const db = Object.assign({}, disk.database, ENV_DATABASE);
+    config.database = db;
+    nconf.set("database", db);
     applied.push("database");
   }
 
